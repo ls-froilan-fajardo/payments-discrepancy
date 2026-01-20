@@ -12,7 +12,7 @@ body {
 }
 h1,h2{ 
   margin-bottom: 10px; 
-  font-size:18px; 
+  font-size:16px; 
 }
 
 .header-row {
@@ -36,15 +36,15 @@ h1,h2{
   flex-direction: column; 
 }
 
-.controls { margin-bottom: 10px; font-size: 14px; }
+.controls { margin-bottom: 10px; font-size: 12px; }
 
 /* Filters: fixed height for 4 items, scrollable if more */
 .checkboxes {
-  font-size: 14px;
+  font-size: 12px;
   margin-bottom: 10px;
-  max-height: calc(4 * 24px); /* 4 items tall */
-  min-height: calc(4 * 24px); /* always at least 4 items tall */
-  overflow-y: auto; /* scroll if more than 4 */
+  max-height: calc(4 * 20px); 
+  min-height: calc(4 * 20px); 
+  overflow-y: auto;
 }
 
 .button-row {
@@ -61,37 +61,35 @@ h1,h2{
   background-color: #4CAF50;
   color:white;
   border:none;
-  padding:6px 12px;
-  font-size:12px;
+  padding:5px 10px;
+  font-size:10px;
   cursor:pointer;
 }
 .button-row button:hover { background-color: #45a049; }
 
-/* Table containers: vertical scroll only, no horizontal scroll */
 .left-panel .table-container,
 .right-panel .table-container {
   flex: 1;
   width: 100%;
   max-height: 400px;
   overflow-y: auto; 
-  overflow-x: hidden; /* disable horizontal scroll */
+  overflow-x: hidden;
 }
 
 table { 
   width: 100%; 
   border-collapse: collapse; 
-  font-size:12px; 
-  table-layout: fixed; /* prevent horizontal scroll */
+  font-size:10px; 
+  table-layout: fixed;
 }
 th, td { 
   border:1px solid #ccc; 
-  padding:4px 6px; 
+  padding:3px 5px; 
   text-align:left; 
   white-space: nowrap; 
-  height:20px; 
+  height:18px; 
 }
 
-/* Sticky headers for both tables */
 .left-panel table th,
 .right-panel table th { 
   position: sticky; 
@@ -100,7 +98,6 @@ th, td {
   z-index:10; 
 }
 
-/* Sticky totals row for both tables */
 .left-panel table .totals-row,
 .right-panel table .totals-row { 
   position: sticky; 
@@ -111,7 +108,7 @@ th, td {
 }
 
 tr.selected { outline:2px solid #4CAF50; cursor:pointer; }
-label{ display:block; margin-bottom:4px; }
+label{ display:block; margin-bottom:2px; }
 </style>
 </head>
 <body>
@@ -160,13 +157,14 @@ label{ display:block; margin-bottom:4px; }
 </div>
 
 <script>
-function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtnId, undoBtnId, sortRadioName, isChannelFilter=false){
+// ================= CSV Panel Initialization =================
+function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtnId, undoBtnId, sortRadioName, isRight=false){
   let csvData = [];
   let headerRow = [];
   let selectedRows = new Set();
   let lastClickedRow = null;
   let actionHistory = [];
-  let colPIndex, colQIndex, colHIndex, colFIndex, colMIndex, colNIndex, colOIndex, colChannelIndex, colPaymentIDIndex, colCardLast4Index;
+  let colPIndex, colQIndex, colHIndex, colFIndex, colMIndex, colNIndex, colOIndex, colPaymentIdIndex, colCardIndex;
 
   document.getElementById(fileInputId).addEventListener('change', function(event){
     const file = event.target.files[0];
@@ -177,6 +175,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
   });
 
   document.querySelectorAll(`input[name="${sortRadioName}"]`).forEach(radio => radio.addEventListener('change', updateOutput));
+
   document.getElementById(addBtnId).addEventListener('click', addRows);
   document.getElementById(removeBtnId).addEventListener('click', removeRows);
   document.getElementById(undoBtnId).addEventListener('click', undoAction);
@@ -206,22 +205,16 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     headerRow = parseCSVLine(lines[0]);
     csvData = lines.slice(1).map(line => parseCSVLine(line));
 
-    colPIndex = headerRow.indexOf("Method");
     colQIndex = headerRow.indexOf("PaymentRef");
     colHIndex = headerRow.indexOf("Account");
     colFIndex = headerRow.indexOf("Date");
     colMIndex = headerRow.indexOf("Amount");
     colNIndex = headerRow.indexOf("Tip");
     colOIndex = headerRow.indexOf("Paid");
-    colChannelIndex = headerRow.indexOf("Channel");
-    
-    if(isChannelFilter){
-      colPaymentIDIndex = headerRow.indexOf("Payment ID");
-      colCardLast4Index = headerRow.indexOf("Card last 4");
-    }
+    colPaymentIdIndex = headerRow.indexOf("Payment ID");
+    colCardIndex = headerRow.indexOf("Card last 4");
 
-    if(!isChannelFilter) generateCheckboxes();
-    else generateChannelCheckboxes();
+    updateOutput();
   }
 
   function parseCSVLine(line){
@@ -237,48 +230,19 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     return result.map(c=>c.replace(/^"(.*)"$/,'$1'));
   }
 
-  function cleanMethod(method){ return method? method.replace(/\s*\(.*?\)\s*/g,'').trim() : ''; }
   function parseCustomDate(dateStr){
     if(!dateStr) return null;
-    const match=dateStr.match(/^(\d{2})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/);
-    if(!match) return null;
-    const [,dd,mm,yy,hh,min]=match;
-    return new Date(2000+parseInt(yy), parseInt(mm)-1, parseInt(dd), parseInt(hh), parseInt(min));
-  }
-
-  function generateCheckboxes(){
-    const div = document.getElementById(filterDivId);
-    div.innerHTML='';
-    const methods = [...new Set(csvData.map(r=>cleanMethod(r[colPIndex])).filter(m=>m!=''))].sort();
-    methods.forEach(method=>{
-      const label=document.createElement('label');
-      const checkbox=document.createElement('input');
-      checkbox.type='checkbox';
-      checkbox.value=method;
-      checkbox.addEventListener('change', updateOutput);
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(' '+method));
-      div.appendChild(label);
-    });
-  }
-
-  function generateChannelCheckboxes(){
-    const div = document.getElementById(filterDivId);
-    div.innerHTML='';
-    const channels = [...new Set(csvData.map(r=>{
-      let val = r[colChannelIndex]?r[colChannelIndex].trim():'Blank';
-      return val===''?'Blank':val;
-    }))].sort();
-    channels.forEach(channel=>{
-      const label=document.createElement('label');
-      const checkbox=document.createElement('input');
-      checkbox.type='checkbox';
-      checkbox.value=channel;
-      checkbox.addEventListener('change', updateOutput);
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(' '+channel));
-      div.appendChild(label);
-    });
+    let match = dateStr.match(/^(\d{2})\.(\d{2})\.(\d{2})\s+(\d{2}):(\d{2})$/);
+    if(match){
+        const [,dd,mm,yy,hh,min]=match;
+        return new Date(2000+parseInt(yy), parseInt(mm)-1, parseInt(dd), parseInt(hh), parseInt(min));
+    }
+    match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2}):(\d{2})$/);
+    if(match){
+        const [ ,yyyy,mm,dd,hh,min,sec] = match;
+        return new Date(parseInt(yyyy), parseInt(mm)-1, parseInt(dd), parseInt(hh), parseInt(min), parseInt(sec));
+    }
+    return new Date(dateStr);
   }
 
   function updateOutput(){
@@ -287,63 +251,31 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     const outputDiv=document.getElementById(outputDivId);
     outputDiv.innerHTML='';
 
-    let checkedFilters = Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb=>cb.value);
-    if(checkedFilters.length===0){ 
-      if(isChannelFilter){
-        // Show all rows if no Channel selected
-        checkedFilters = [...new Set(csvData.map(r=>r[colChannelIndex]?r[colChannelIndex].trim():'Blank'))];
-      } else {
-        outputDiv.innerHTML='<i>No selection</i>'; 
-        return; 
-      }
-    }
-
     let allRows=[];
-    if(!isChannelFilter){
-      checkedFilters.forEach(method=>{
-        const rows = csvData.filter(r=>cleanMethod(r[colPIndex])===method);
-        const standaloneRows = rows.filter(r=>!r[colQIndex]);
-        const nonBlankRows = rows.filter(r=>r[colQIndex]);
-        standaloneRows.forEach(r=>{
-          allRows.push({paymentRef:'Standalone', colH:r[colHIndex]||'', colF:r[colFIndex]||'', totalM:parseFloat(r[colMIndex])||0, totalN:parseFloat(r[colNIndex])||0, totalO:parseFloat(r[colOIndex])||0});
+    if(isRight){
+        allRows = csvData.map(r=>{
+            return {paymentRef: r[colPaymentIdIndex]||'', colH: r[colCardIndex]||'', colF: r[colFIndex]||'', totalM: parseFloat(r[colMIndex])||0, totalN: parseFloat(r[colNIndex])||0, totalO: parseFloat(r[colOIndex])||0};
         });
-        const grouped={};
-        nonBlankRows.forEach(r=>{
-          const key=r[colQIndex]; if(!grouped[key]) grouped[key]=[]; grouped[key].push(r);
-        });
-        Object.keys(grouped).forEach(paymentRef=>{
-          const g=grouped[paymentRef];
-          const totalM=g.reduce((s,r)=>s+(parseFloat(r[colMIndex])||0),0);
-          const totalN=g.reduce((s,r)=>s+(parseFloat(r[colNIndex])||0),0);
-          const totalO=g.reduce((s,r)=>s+(parseFloat(r[colOIndex])||0),0);
-          allRows.push({paymentRef, colH:g[0][colHIndex]||'', colF:g[0][colFIndex]||'', totalM,totalN,totalO});
-        });
-      });
     } else {
-      allRows = csvData.filter(r=>{
-        let val = r[colChannelIndex]?r[colChannelIndex].trim():'Blank';
-        val = val===''?'Blank':val;
-        return checkedFilters.includes(val);
-      }).map(r=>{
-        return {
-          paymentRef: r[colPaymentIDIndex] || '',
-          colH: r[colCardLast4Index] || '',
-          colF: r[colFIndex]||'',
-          totalM: parseFloat(r[colMIndex])||0,
-          totalN: parseFloat(r[colNIndex])||0,
-          totalO: parseFloat(r[colOIndex])||0
-        };
-      });
+        allRows = csvData.map(r=>{
+            return {paymentRef:r[colQIndex]||'', colH:r[colHIndex]||'', colF:r[colFIndex]||'', totalM:parseFloat(r[colMIndex])||0, totalN:parseFloat(r[colNIndex])||0, totalO:parseFloat(r[colOIndex])||0};
+        });
     }
 
-    // ---------------- Sort logic ----------------
+    // Sorting
     const sortOption = document.querySelector(`input[name="${sortRadioName}"]:checked`).value;
-    if(isChannelFilter){
-        if(sortOption==='amount') allRows.sort((a,b)=>parseFloat(b.totalO)-parseFloat(a.totalO)); // Paid
-        else allRows.sort((a,b)=>parseCustomDate(a.colF)-parseCustomDate(b.colF)); // Date
+    if(isRight){
+        if(sortOption==='amount'){
+            allRows.sort((a,b)=>b.totalO - a.totalO); // Paid
+        } else {
+            allRows.sort((a,b)=>parseCustomDate(a.colF) - parseCustomDate(b.colF)); // Date
+        }
     } else {
-        if(sortOption==='amount') allRows.sort((a,b)=>parseFloat(b.totalM)-parseFloat(a.totalM));
-        else allRows.sort((a,b)=>parseCustomDate(a.colF)-parseCustomDate(b.colF));
+        if(sortOption==='amount'){
+            allRows.sort((a,b)=>b.totalM - a.totalM);
+        } else {
+            allRows.sort((a,b)=>parseCustomDate(a.colF) - parseCustomDate(b.colF));
+        }
     }
 
     const table=document.createElement('table');
@@ -363,7 +295,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         else if(h==='Tip') td.textContent = r.totalN.toFixed(2);
         else if(h==='Paid') td.textContent = r.totalO.toFixed(2);
         td.contentEditable=false;
-        td.style.height='20px';
+        td.style.height='18px';
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -371,35 +303,21 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
 
     const totalsRow=document.createElement('tr');
     totalsRow.classList.add('totals-row');
-    updateTotalsRow(totalsRow, tbody);
+    const totalM=allRows.reduce((s,r)=>s+r.totalM,0);
+    const totalN=allRows.reduce((s,r)=>s+r.totalN,0);
+    const totalO=allRows.reduce((s,r)=>s+r.totalO,0);
+    totalsRow.innerHTML='';
+    ['Total','', '', totalM.toFixed(2), totalN.toFixed(2), totalO.toFixed(2)].forEach(val=>{
+        const td=document.createElement('td');
+        td.textContent=val;
+        td.contentEditable=false;
+        td.style.height='18px';
+        totalsRow.appendChild(td);
+    });
     tbody.appendChild(totalsRow);
 
     table.appendChild(tbody);
     outputDiv.appendChild(table);
-  }
-
-  function updateTotals(){
-    const tableBody=document.querySelector(`#${outputDivId} table tbody`);
-    if(!tableBody) return;
-    const totalsRow=tableBody.querySelector('.totals-row');
-    if(!totalsRow) return;
-    updateTotalsRow(totalsRow, tableBody);
-  }
-
-  function updateTotalsRow(totalsRow, tbody){
-    const rows=Array.from(tbody.querySelectorAll('tr:not(.totals-row)'));
-    const totalM=rows.reduce((s,r)=>s+(parseFloat(r.children[3].textContent)||0),0);
-    const totalN=rows.reduce((s,r)=>s+(parseFloat(r.children[4].textContent)||0),0);
-    const totalO=rows.reduce((s,r)=>s+(parseFloat(r.children[5].textContent)||0),0);
-    totalsRow.innerHTML='';
-    const cols = ['Total','', '', totalM.toFixed(2), totalN.toFixed(2), totalO.toFixed(2)];
-    cols.forEach(val=>{
-      const td=document.createElement('td');
-      td.textContent=val;
-      td.contentEditable=false;
-      td.style.height='20px';
-      totalsRow.appendChild(td);
-    });
   }
 
   function addRows(){
@@ -417,7 +335,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         const td=document.createElement('td');
         td.textContent='';
         td.contentEditable=false;
-        td.style.height='20px';
+        td.style.height='18px';
         tr.appendChild(td);
       }
       tr.addEventListener('click',(e)=>toggleRowSelection(tr,e));
@@ -428,7 +346,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       addedRows.push(tr);
     }
     actionHistory.push({type:'add', rows:addedRows});
-    updateTotals();
+    updateOutput();
   }
 
   function removeRows(){
@@ -440,7 +358,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     });
     actionHistory.push({type:'remove', rows:removedRows});
     selectedRows.clear();
-    updateTotals();
+    updateOutput();
   }
 
   function undoAction(){
@@ -456,7 +374,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         else document.querySelector(`#${outputDivId} table tbody`).appendChild(obj.tr);
       });
     }
-    updateTotals();
+    updateOutput();
   }
 
 }
