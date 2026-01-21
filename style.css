@@ -17,7 +17,6 @@ body {
   width: 100vw; 
   align-items: flex-start; 
   gap: 10px;
-  height: calc(100vh - 50px); /* leave space for headers */
 }
 
 .left-panel, .right-panel { 
@@ -26,19 +25,19 @@ body {
   flex-direction: column; 
   padding: 0 10px; 
   box-sizing: border-box; 
-  height: 100%; 
 }
 
 /* =================== Controls =================== */
 .controls { margin-bottom: 10px; font-size: 14px; }
 
+/* Fixed-height filter lists */
 .checkboxes { 
   margin-bottom: 10px; 
   font-size: 14px; 
   max-height: calc(4 * 24px + 4px); /* max 4 items visible */
-  min-height: calc(4 * 24px + 4px); /* always show height as if 4 items */
+  min-height: calc(4 * 24px + 4px); /* always height for 4 items */
   overflow-y: auto; 
-  flex-shrink: 0; /* prevent shrinking */
+  flex-shrink: 0;
   border: 1px solid #ccc;
   padding: 4px;
   background-color: #fff;
@@ -68,10 +67,10 @@ body {
 
 /* =================== Tables =================== */
 .table-container {
-  flex: 1; /* take remaining space */
-  width:100%;
+  width: 100%;
   overflow: auto; /* scrollable */
   position: relative;
+  height: 420px; /* fixed table height */
 }
 
 table { 
