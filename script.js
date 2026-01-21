@@ -207,21 +207,36 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     let checkedFilters = Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb=>cb.value);
 
     let filteredRows = csvData;
+
+    // Left table method filter
     if(!isRightTable && checkedFilters.length>0){
       filteredRows = csvData.filter(r=>checkedFilters.includes(cleanMethod(r[colMethodIndex])));
-    } else if(isRightTable && checkedFilters.length>0){
+    }
+
+    // Right table channel filter
+    if(isRightTable && checkedFilters.length>0){
       const colChannelIndex = headerRow.indexOf("Channel");
-      filteredRows = csvData.filter(r=>{
+      filteredRows = filteredRows.filter(r=>{
         let val = r[colChannelIndex]?r[colChannelIndex].trim():'Blank';
         val = val===''?'Blank':val;
         return checkedFilters.includes(val);
       });
     }
 
+    // Remove rows where Status = FAILED
+    if(isRightTable){
+      const colStatusIndex = headerRow.indexOf("Status");
+      if(colStatusIndex !== -1){
+        filteredRows = filteredRows.filter(r => (r[colStatusIndex] || '').trim().toUpperCase() !== 'FAILED');
+      }
+    }
+
+    // Sorting
     const sortOption = document.querySelector(`input[name="${sortRadioName}"]:checked`)?.value || 'date';
     if(sortOption==='amount') filteredRows.sort((a,b)=>parseFloat(b[colMIndex]||0)-parseFloat(a[colMIndex]||0));
     else filteredRows.sort((a,b)=>new Date(a[colFIndex])-new Date(b[colFIndex]));
 
+    // Build table
     const table=document.createElement('table');
     const headers = isRightTable 
       ? ['Payment ID', 'Card last 4', 'Date', 'Amount']
@@ -259,7 +274,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     table.appendChild(tbody);
     outputDiv.appendChild(table);
 
-    updatePaymentIDHighlights(); // <-- highlight dynamically
+    updatePaymentIDHighlights(); // <-- dynamic highlight
   }
 
   // ================= Dynamic Totals ===================
