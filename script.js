@@ -1,3 +1,21 @@
+// ===================== Global Dynamic Payment ID Highlight =====================
+function updatePaymentIDHighlights() {
+  const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
+  const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
+
+  rightRows.forEach((tr, index) => {
+    const paymentIDCell = tr.cells[0]; // Payment ID in right table
+    const leftPaymentCell = leftRows[index]?.cells[0]; // PaymentRef in left table
+    if(paymentIDCell) {
+      if(!leftPaymentCell || paymentIDCell.textContent !== leftPaymentCell.textContent) {
+        paymentIDCell.style.backgroundColor = '#f8d7da'; // red highlight
+      } else {
+        paymentIDCell.style.backgroundColor = ''; // remove highlight
+      }
+    }
+  });
+}
+
 // ================= CSV Panel Initialization =================
 function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtnId, undoBtnId, sortRadioName, isRightTable=false){
   let csvData = [];
@@ -44,7 +62,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       addedRows.push(tr);
     }
     updateTotals();
-    if(isRightTable) updateRightTableHighlights();
+    updatePaymentIDHighlights(); // <-- dynamic highlight
     actionHistory.push({type:'add', rows:addedRows});
   });
 
@@ -62,7 +80,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     selectedRows.clear();
     lastClickedRow=null;
     updateTotals();
-    if(isRightTable) updateRightTableHighlights();
+    updatePaymentIDHighlights(); // <-- dynamic highlight
     if(removedRows.length>0) actionHistory.push({type:'delete', rows:removedRows});
   });
 
@@ -81,7 +99,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       });
     }
     updateTotals();
-    if(isRightTable) updateRightTableHighlights();
+    updatePaymentIDHighlights(); // <-- dynamic highlight
   });
 
   function toggleRowSelection(tr,e){
@@ -186,9 +204,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     const outputDiv=document.getElementById(outputDivId);
     outputDiv.innerHTML='';
 
-    let checkedFilters = isRightTable
-      ? Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb=>cb.value) // channels
-      : Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb=>cb.value); // methods
+    let checkedFilters = Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb=>cb.value);
 
     let filteredRows = csvData;
     if(!isRightTable && checkedFilters.length>0){
@@ -208,8 +224,8 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
 
     const table=document.createElement('table');
     const headers = isRightTable 
-      ? ['Payment ID', 'Card last 4', 'Date', 'Amount']  // right table
-      : ['PaymentRef', 'Account', 'Date','Amount','Tip','Paid']; // left table
+      ? ['Payment ID', 'Card last 4', 'Date', 'Amount']
+      : ['PaymentRef', 'Account', 'Date','Amount','Tip','Paid'];
     table.innerHTML=`<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
     const tbody=document.createElement('tbody');
 
@@ -225,7 +241,6 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         else if(h==='Date') td.textContent = r[colFIndex];
         else if(h==='Amount') td.textContent = colMIndex!==-1 && r[colMIndex] ? parseFloat(r[colMIndex]).toFixed(2) : '0.00';
         else if(!isRightTable){
-          // Only left table uses Tip and Paid
           const colTipIndex = headerRow.indexOf("Tip");
           const colPaidIndex = headerRow.indexOf("Paid");
           if(h==='Tip') td.textContent = colTipIndex!==-1 && r[colTipIndex] ? parseFloat(r[colTipIndex]).toFixed(2) : '0.00';
@@ -236,7 +251,6 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       tbody.appendChild(tr);
     });
 
-    // Totals row
     const totalsRow=document.createElement('tr');
     totalsRow.classList.add('totals-row');
     updateTotalsRow(totalsRow, tbody, isRightTable);
@@ -245,7 +259,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     table.appendChild(tbody);
     outputDiv.appendChild(table);
 
-    if(isRightTable) updateRightTableHighlights();
+    updatePaymentIDHighlights(); // <-- highlight dynamically
   }
 
   // ================= Dynamic Totals ===================
@@ -277,38 +291,12 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       td.contentEditable = false;
       td.style.height = '20px';
 
-      // Exclude non-numeric totals
-      if(isRightTable && (i === 1 || i === 2)) td.textContent = ''; // right table: Card last 4 & Date
-      else if(!isRightTable && i === 2) td.textContent = ''; // left table: Date
+      if(isRightTable && (i === 1 || i === 2)) td.textContent = '';
+      else if(!isRightTable && i === 2) td.textContent = '';
       else td.textContent = i === 0 ? 'Total' : (sums[i] ? sums[i].toFixed(2) : '');
 
       totalsRow.appendChild(td);
     }
-  }
-
-  // =================== Right Table Highlight ===================
-  function updateRightTableHighlights(){
-    const leftTable = document.querySelector('#outputLeft table tbody');
-    const rightTable = document.querySelector('#outputRight table tbody');
-    if(!leftTable || !rightTable) return;
-
-    const leftPaymentMap = {};
-    Array.from(leftTable.rows).forEach(tr=>{
-      if(!tr.classList.contains('totals-row')){
-        const paymentRef = tr.cells[0].textContent;
-        leftPaymentMap[paymentRef] = true;
-      }
-    });
-
-    Array.from(rightTable.rows).forEach(tr=>{
-      if(tr.classList.contains('totals-row')) return;
-      const paymentCell = tr.cells[0];
-      if(paymentCell && !leftPaymentMap[paymentCell.textContent]){
-        paymentCell.style.backgroundColor = '#f8d7da';
-      } else {
-        paymentCell.style.backgroundColor = '';
-      }
-    });
   }
 }
 
