@@ -1,53 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>CSV Filter Tables Side by Side</title>
-<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Filter Tables Side by Side</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="header-row">
-  <h1>CSV Filter Tables Side by Side</h1>
-  <h2>Second CSV Upload</h2>
+    <h1>CSV Filter Tables Side by Side</h1>
+    
+    <div class="global-controls-container">
+        <div class="sort-group">
+            <strong>Global Sorting:</strong>
+            <label>
+                <input type="radio" name="globalSort" value="date" checked /> Sort by Date
+            </label>
+            <label>
+                <input type="radio" name="globalSort" value="amount" /> Sort by Amount
+            </label>
+        </div>
+        
+        <div class="action-group">
+            <button id="matchAllBtn" class="primary-btn">Match All Payment IDs</button>
+            <span class="info-text">Aligns matching IDs horizontally</span>
+        </div>
+    </div>
 </div>
 
 <div class="flex-container">
-  <!-- Left Panel -->
-  <div class="left-panel">
-    <div class="controls">
-      <label><input type="radio" name="sortOptionLeft" value="date" checked /> Sort by Date</label>
-      <label><input type="radio" name="sortOptionLeft" value="amount" /> Sort by Amount</label>
-    </div>
-    <input type="file" id="csvFileLeft" accept=".csv" />
-    <div class="checkboxes" id="methodCheckboxesLeft"></div>
+    <div class="left-panel">
+        <div class="panel-header">
+            <h3>Left Table (PaymentRef)</h3>
+            <input type="file" id="csvFileLeft" accept=".csv" />
+        </div>
+        
+        <div class="checkboxes-container">
+            <strong>Filter by Method:</strong>
+            <div class="checkboxes" id="methodCheckboxesLeft"></div>
+        </div>
 
-    <div class="button-row">
-      <button id="addRowBtnLeft">Add Blank Row(s) Below Selected</button>
-      <button id="removeRowBtnLeft">Remove Selected Row(s)</button>
-      <button id="undoBtnLeft">Undo</button>
-    </div>
+        <div class="button-row">
+            <button id="addRowBtnLeft" class="btn-shift">Shift Row(s) Down</button>
+            <button id="removeRowBtnLeft" class="btn-remove">Remove Selected</button>
+            <button id="undoBtnLeft" class="btn-undo">Undo</button>
+        </div>
 
-    <div class="table-container" id="outputLeft"></div>
-  </div>
-
-  <!-- Right Panel -->
-  <div class="right-panel">
-    <div class="controls">
-      <label><input type="radio" name="sortOptionRight" value="date" checked /> Sort by Date</label>
-      <label><input type="radio" name="sortOptionRight" value="amount" /> Sort by Amount</label>
-    </div>
-    <input type="file" id="csvFileRight" accept=".csv" />
-    <div class="checkboxes" id="channelCheckboxesRight"></div>
-
-    <div class="button-row">
-      <button id="addRowBtnRight">Add Blank Row(s) Below Selected</button>
-      <button id="removeRowBtnRight">Remove Selected Row(s)</button>
-      <button id="undoBtnRight">Undo</button>
+        <div class="table-container" id="outputLeft"></div>
     </div>
 
-    <div class="table-container" id="outputRight"></div>
-  </div>
+    <div class="right-panel">
+        <div class="panel-header">
+            <h3>Right Table (Payment ID)</h3>
+            <input type="file" id="csvFileRight" accept=".csv" />
+        </div>
+
+        <div class="checkboxes-container">
+            <strong>Filter by Channel:</strong>
+            <div class="checkboxes" id="channelCheckboxesRight"></div>
+        </div>
+
+        <div class="button-row">
+            <button id="addRowBtnRight" class="btn-shift">Shift Row(s) Down</button>
+            <button id="removeRowBtnRight" class="btn-remove">Remove Selected</button>
+            <button id="undoBtnRight" class="btn-undo">Undo</button>
+        </div>
+
+        <div class="table-container" id="outputRight"></div>
+    </div>
 </div>
 
 <script src="script.js"></script>
