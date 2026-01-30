@@ -1,4 +1,4 @@
-/* =================== Variables & Base =================== */
+/* =================== Variables & Full-Screen Reset =================== */
 :root {
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
@@ -7,136 +7,157 @@
     --danger: #dc2626;
     --danger-hover: #b91c1c;
     --undo: #64748b;
-    --bg-main: #f8fafc;
+    --bg-main: #f1f5f9;
     --bg-card: #ffffff;
-    --border: #e2e8f0;
-    --text-main: #1e293b;
-    --text-muted: #64748b;
+    --border: #cbd5e1;
+    --text-main: #0f172a;
+    --text-muted: #475569;
 }
 
+* { box-sizing: border-box; }
+
 body { 
-    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
-    padding: 20px; 
+    font-family: 'Segoe UI', system-ui, sans-serif; 
+    padding: 10px; 
     background-color: var(--bg-main); 
     color: var(--text-main);
     margin: 0; 
+    height: 100vh; /* Fill viewport height */
+    display: flex;
+    flex-direction: column;
 }
 
-/* =================== Global Controls Bar =================== */
-.header-row h1 {
+/* =================== Header & Global Controls =================== */
+.header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    flex-shrink: 0; /* Don't compress header */
+}
+
+.main-title-group h1 {
     font-size: 20px;
-    margin-bottom: 15px;
+    margin: 0;
+    color: var(--primary);
 }
 
 .global-controls-container {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    gap: 8px;
     background: var(--bg-card);
-    padding: 12px 20px;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    padding: 8px 15px;
+    border-radius: 6px;
     border: 1px solid var(--border);
-    margin-bottom: 20px;
+    align-items: center;
 }
 
-/* =================== Panels Layout =================== */
+/* =================== Fluid Panel Layout =================== */
 .flex-container { 
     display: flex; 
-    width: 100%; 
-    gap: 15px;
+    flex: 1; /* Grow to fill remaining vertical space */
+    gap: 10px;
+    width: 100%;
+    min-height: 0; /* Important for flex-grow scrolling */
 }
 
-.left-panel, .right-panel { 
+.panel { 
     flex: 1; 
     background: var(--bg-card);
-    padding: 15px;
+    padding: 12px;
     border-radius: 8px;
     border: 1px solid var(--border);
+    display: flex;
+    flex-direction: column; /* Stack header, filters, buttons, and table */
     min-width: 0; 
 }
 
-/* =================== Filters =================== */
-.checkboxes-container strong {
-    font-size: 14px;
-    color: var(--text-muted);
+.title-with-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
 }
 
+.title-with-button h3 {
+    margin: 0;
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.title-with-button input[type="file"] { font-size: 11px; }
+
+/* =================== Filters & UI Elements =================== */
+.checkbox-area { margin-bottom: 8px; }
+
 .checkboxes { 
-    margin: 8px 0 15px 0;
-    font-size: 13px; 
-    height: 100px; 
+    margin-top: 5px;
+    font-size: 11px; 
+    height: 70px; /* More compact filter area */
     overflow-y: auto; 
     border: 1px solid var(--border);
     border-radius: 4px;
-    padding: 6px;
-    background-color: #fafafa;
+    padding: 4px;
+    background-color: #f8fafc;
 }
 
-.checkboxes label {
-    display: block;
-    padding: 2px 0;
-    cursor: pointer;
-}
-
-/* =================== Buttons =================== */
 .button-row {
     display: flex;
-    gap: 6px;
-    margin-bottom: 12px;
+    gap: 5px;
+    margin-bottom: 8px;
 }
 
 button {
     border-radius: 4px;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 500;
+    padding: 5px 10px;
+    font-size: 11px;
+    font-weight: 600;
     cursor: pointer;
     border: none;
     color: white;
 }
 
 .primary-btn { background-color: var(--primary); }
-.primary-btn:hover { background-color: var(--primary-hover); }
-
+.filter-btn { background-color: var(--undo); }
+.reset-btn { background-color: var(--danger); }
 .btn-shift { background-color: var(--success); }
-.btn-shift:hover { background-color: var(--success-hover); }
-
 .btn-remove { background-color: var(--danger); }
-.btn-remove:hover { background-color: var(--danger-hover); }
-
 .btn-undo { background-color: var(--undo); }
 
-/* =================== Tables =================== */
+/* =================== The Table (Maximum Space) =================== */
 .table-container {
+    flex: 1; /* Table fills the rest of the panel */
     width: 100%;
     overflow: auto;
-    height: 450px; 
     border: 1px solid var(--border);
+    background: #fff;
 }
 
 table { 
     width: 100%; 
     border-collapse: collapse;
-    font-size: 12px; 
+    font-size: 11px; /* High density text */
 }
 
 th {
-    background-color: #f1f5f9; 
+    background-color: #e2e8f0; 
     position: sticky; 
     top: 0; 
     z-index: 10; 
     border-bottom: 2px solid var(--border);
+    padding: 8px;
+    text-align: left;
 }
 
-th, td { 
+td { 
     border: 1px solid var(--border);
-    padding: 6px 10px; 
-    text-align: left; 
+    padding: 4px 8px; 
     white-space: nowrap; 
 }
 
-/* Totals Row */
+/* Sticky Totals Row */
 tr.totals-row td { 
     font-weight: bold; 
     background-color: #f1f5f9; 
@@ -148,10 +169,7 @@ tr.totals-row td {
 
 tr.selected td {
     background-color: #eff6ff !important;
-    outline: 1px solid var(--primary);
+    box-shadow: inset 0 0 0 1px var(--primary);
 }
 
-.info-text {
-    font-size: 12px;
-    color: var(--text-muted);
-}
+.info-text { font-size: 11px; color: var(--text-muted); }
