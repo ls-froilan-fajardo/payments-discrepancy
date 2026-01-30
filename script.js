@@ -8,6 +8,10 @@ let isRedFilterActive = true;
 
 // Set initial button styles on load
 window.addEventListener('DOMContentLoaded', () => {
+  setButtonStates();
+});
+
+function setButtonStates() {
   const matchBtn = document.getElementById('matchAllBtn');
   const redBtn = document.getElementById('showRedOnlyBtn');
   
@@ -20,7 +24,7 @@ window.addEventListener('DOMContentLoaded', () => {
     redBtn.style.backgroundColor = '#dc2626';
     redBtn.textContent = 'Showing Red Only';
   }
-});
+}
 
 // ===================== Global Action Listeners =====================
 document.getElementById('matchAllBtn').addEventListener('click', function() {
@@ -37,8 +41,28 @@ document.getElementById('showRedOnlyBtn').addEventListener('click', function() {
   applyRedFilter();
 });
 
+// ===================== MANUAL ROBUST RESET =====================
 document.getElementById('resetViewBtn').addEventListener('click', function() {
-    location.reload(); 
+    if (confirm("Are you sure you want to clear all data and reset the dashboard?")) {
+        // 1. Clear the File Inputs
+        document.getElementById('csvFileLeft').value = "";
+        document.getElementById('csvFileRight').value = "";
+
+        // 2. Clear the Table Outputs
+        document.getElementById('outputLeft').innerHTML = "";
+        document.getElementById('outputRight').innerHTML = "";
+
+        // 3. Clear the Filter Checkboxes
+        document.getElementById('methodCheckboxesLeft').innerHTML = "";
+        document.getElementById('channelCheckboxesRight').innerHTML = "";
+
+        // 4. Reset Global State
+        isMatchAllActive = true;
+        isRedFilterActive = true;
+        setButtonStates();
+
+        console.log("Reconciliation Tool: Full Reset Completed.");
+    }
 });
 
 function refreshBoth() {
@@ -118,13 +142,10 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     reader.readAsText(file);
   });
 
-  // Basic Row Shifting Logic
   document.getElementById(addBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
     if (!tableBody || selectedRows.size === 0) return;
-    const allRows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'));
-    let firstIdx = allRows.length;
-    allRows.forEach((tr, i) => { if (selectedRows.has(tr) && i < firstIdx) firstIdx = i; });
+    const firstIdx = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)')).findIndex(tr => selectedRows.has(tr));
 
     const addedRows = [];
     for (let i = 0; i < selectedRows.size; i++) {
@@ -288,7 +309,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
   }
 }
 
-// ===================== Alignment Logic =====================
+// ===================== Alignment Engine =====================
 function insertBlankRow(tbody, index, numCols) {
   const tr = document.createElement('tr');
   for (let c = 0; c < numCols; c++) {
@@ -307,7 +328,8 @@ function updatePaymentIDHighlights() {
   for (let index = 0; index < maxLength; index++) {
     const lRow = leftRows[index], rRow = rightRows[index];
     const lCell = lRow?.cells[0], rCell = rRow?.cells[0];
-    const lV = lCell?.textContent.trim() || "", rV = rCell?.textContent.trim() || "";
+    const lV = lCell?.textContent.trim() || "";
+    const rV = rCell?.textContent.trim() || "";
 
     if (lV !== rV || lV === "" || rV === "") {
       if (lCell) lCell.style.backgroundColor = '#f8d7da'; 
@@ -361,7 +383,6 @@ function runAlignmentLogic() {
   }
 }
 
-// ================== Initialization ==================
 initCSVPanel('csvFileLeft', 'methodCheckboxesLeft', 'outputLeft', 'addRowBtnLeft', 'removeRowBtnLeft', 'undoBtnLeft', false);
 initCSVPanel('csvFileRight', 'channelCheckboxesRight', 'outputRight', 'addRowBtnRight', 'removeRowBtnRight', 'undoBtnRight', true);
 
