@@ -86,10 +86,12 @@ function updateTotalsDOM(outputId, isRight) {
             if (i === 0) {
                 td.textContent = isRedFilterActive ? 'Filtered Total' : 'Total';
             } else if (isRight) {
+                // Right Table: Payment ID, Card last 4, Date, Amount, Tips, Refunds
                 if (i === 1 || i === 2) td.textContent = '';
                 else td.textContent = sums[i].toFixed(2);
             } else {
-                if (i === 2) td.textContent = '';
+                // Left Table: PaymentRef, Account, Date, Amount, Tip, Paid
+                if (i === 1 || i === 2) td.textContent = '';
                 else td.textContent = sums[i].toFixed(2);
             }
             totalsRow.appendChild(td);
@@ -276,22 +278,30 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         rows.sort((a, b) => new Date(a[dateIdx]) - new Date(b[dateIdx]));
 
         const table = document.createElement('table');
-        const headers = isRightTable 
-            ? ['Payment ID', 'Card last 4', 'Date', 'Amount', 'Gratuity amount', 'Refunded amount'] 
+        
+        // RENAME LOGIC: Headers array for display, but index lookups use CSV names
+        const displayHeaders = isRightTable 
+            ? ['Payment ID', 'Card last 4', 'Date', 'Amount', 'Tips', 'Refunds'] 
             : ['PaymentRef', 'Account', 'Date', 'Amount', 'Tip', 'Paid'];
         
-        table.innerHTML = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+        table.innerHTML = `<thead><tr>${displayHeaders.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
         const tbody = document.createElement('tbody');
 
         rows.forEach(r => {
             const tr = document.createElement('tr');
             tr.addEventListener('click', (e) => toggleRowSelection(tr, e));
-            headers.forEach(h => {
+            displayHeaders.forEach(h => {
                 const td = document.createElement('td');
-                const idx = headerRow.indexOf(h);
+                
+                // Map display names back to CSV header names for lookup
+                let lookupName = h;
+                if (isRightTable && h === 'Tips') lookupName = 'Gratuity amount';
+                if (isRightTable && h === 'Refunds') lookupName = 'Refunded amount';
+                
+                const idx = headerRow.indexOf(lookupName);
                 if (idx !== -1) {
                     const val = r[idx];
-                    const isMoney = ['Amount', 'Gratuity amount', 'Refunded amount', 'Tip', 'Paid'].includes(h);
+                    const isMoney = ['Amount', 'Tips', 'Refunds', 'Tip', 'Paid', 'Gratuity amount', 'Refunded amount'].includes(h) || ['Amount', 'Tips', 'Refunds', 'Tip', 'Paid', 'Gratuity amount', 'Refunded amount'].includes(lookupName);
                     td.textContent = isMoney ? parseFloat(val || 0).toFixed(2) : (val || '');
                 } else {
                     td.textContent = (['Date', 'Account', 'Card last 4', 'Payment ID', 'PaymentRef'].includes(h)) ? '' : '0.00';
