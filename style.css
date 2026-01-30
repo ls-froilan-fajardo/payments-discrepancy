@@ -40,20 +40,6 @@ body {
     margin-bottom: 20px;
 }
 
-.sort-group {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.sort-group label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    cursor: pointer;
-}
-
 /* =================== Panels Layout =================== */
 .flex-container { 
     display: flex; 
