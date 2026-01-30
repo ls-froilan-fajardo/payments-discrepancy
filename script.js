@@ -1,10 +1,28 @@
 // ===================== Global State =====================
 let updateLeftTable = null;
 let updateRightTable = null;
-let isMatchAllActive = false; 
-let isRedFilterActive = false;
 
-// ===================== Match All Toggle =====================
+// ENABLED BY DEFAULT
+let isMatchAllActive = true; 
+let isRedFilterActive = true;
+
+// Set initial button styles on load
+window.addEventListener('DOMContentLoaded', () => {
+  const matchBtn = document.getElementById('matchAllBtn');
+  const redBtn = document.getElementById('showRedOnlyBtn');
+  
+  if (matchBtn) {
+    matchBtn.style.backgroundColor = '#16a34a';
+    matchBtn.textContent = 'Alignment: ON';
+  }
+  
+  if (redBtn) {
+    redBtn.style.backgroundColor = '#dc2626';
+    redBtn.textContent = 'Showing Red Only';
+  }
+});
+
+// ===================== Global Action Listeners =====================
 document.getElementById('matchAllBtn').addEventListener('click', function() {
   isMatchAllActive = !isMatchAllActive;
   this.style.backgroundColor = isMatchAllActive ? '#16a34a' : '';
@@ -12,7 +30,6 @@ document.getElementById('matchAllBtn').addEventListener('click', function() {
   refreshBoth();
 });
 
-// ===================== Show Red Only Toggle =====================
 document.getElementById('showRedOnlyBtn').addEventListener('click', function() {
   isRedFilterActive = !isRedFilterActive;
   this.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
@@ -20,11 +37,48 @@ document.getElementById('showRedOnlyBtn').addEventListener('click', function() {
   applyRedFilter();
 });
 
+document.getElementById('resetViewBtn').addEventListener('click', function() {
+    location.reload(); 
+});
+
 function refreshBoth() {
     if (updateLeftTable) updateLeftTable();
     if (updateRightTable) updateRightTable();
-    // Re-apply filter if it was active after data refresh
     if (isRedFilterActive) applyRedFilter();
+}
+
+// ===================== Totals Logic =====================
+function updateTotalsDOM(outputId, isRight) {
+    const container = document.getElementById(outputId);
+    if (!container) return;
+    const tableBody = container.querySelector('tbody');
+    if (!tableBody) return;
+    
+    const totalsRow = tableBody.querySelector('.totals-row');
+    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'));
+    const numCols = rows[0]?.children.length || 0;
+    const sums = new Array(numCols).fill(0);
+
+    rows.forEach(tr => {
+      if (tr.style.display !== 'none') {
+        for (let i = 0; i < numCols; i++) {
+          const val = parseFloat(tr.children[i]?.textContent);
+          if (!isNaN(val)) sums[i] += val;
+        }
+      }
+    });
+
+    if (totalsRow) {
+        totalsRow.innerHTML = '';
+        for (let i = 0; i < numCols; i++) {
+          const td = document.createElement('td');
+          if (i === 0) td.textContent = isRedFilterActive ? 'Filtered Total' : 'Total';
+          else if (isRight && (i === 1 || i === 2)) td.textContent = '';
+          else if (!isRight && i === 2) td.textContent = '';
+          else td.textContent = sums[i] ? sums[i].toFixed(2) : '';
+          totalsRow.appendChild(td);
+        }
+    }
 }
 
 function applyRedFilter() {
@@ -34,60 +88,18 @@ function applyRedFilter() {
   for (let i = 0; i < leftRows.length; i++) {
     const lRow = leftRows[i];
     const rRow = rightRows[i];
-    
-    // Check if either cell in the pair is highlighted red
     const isRed = (lRow?.cells[0]?.style.backgroundColor === 'rgb(248, 215, 218)') || 
                   (rRow?.cells[0]?.style.backgroundColor === 'rgb(248, 215, 218)');
 
-    if (isRedFilterActive) {
-      if (lRow) lRow.style.display = isRed ? '' : 'none';
-      if (rRow) rRow.style.display = isRed ? '' : 'none';
-    } else {
-      if (lRow) lRow.style.display = '';
-      if (rRow) rRow.style.display = '';
-    }
+    const displayStyle = isRedFilterActive ? (isRed ? '' : 'none') : '';
+    if (lRow) lRow.style.display = displayStyle;
+    if (rRow) rRow.style.display = displayStyle;
   }
+  updateTotalsDOM('outputLeft', false);
+  updateTotalsDOM('outputRight', true);
 }
 
-// ===================== HELPER: Insert Blank Row =====================
-function insertBlankRow(tbody, index, numCols) {
-  const tr = document.createElement('tr');
-  for (let c = 0; c < numCols; c++) {
-    const td = document.createElement('td');
-    td.style.height = '20px';
-    tr.appendChild(td);
-  }
-  tbody.insertBefore(tr, tbody.rows[index]);
-}
-
-// ===================== Global Dynamic Highlight (Bidirectional) =====================
-function updatePaymentIDHighlights() {
-  const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
-  const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
-
-  const maxLength = Math.max(leftRows.length, rightRows.length);
-
-  for (let index = 0; index < maxLength; index++) {
-    const leftRow = leftRows[index];
-    const rightRow = rightRows[index];
-    
-    const leftPaymentCell = leftRow?.cells[0];
-    const rightPaymentCell = rightRow?.cells[0];
-
-    const leftVal = leftPaymentCell?.textContent.trim() || "";
-    const rightVal = rightPaymentCell?.textContent.trim() || "";
-
-    if (leftVal !== rightVal || leftVal === "" || rightVal === "") {
-      if (leftPaymentCell) leftPaymentCell.style.backgroundColor = '#f8d7da'; 
-      if (rightPaymentCell) rightPaymentCell.style.backgroundColor = '#f8d7da'; 
-    } else {
-      if (leftPaymentCell) leftPaymentCell.style.backgroundColor = '';
-      if (rightPaymentCell) rightPaymentCell.style.backgroundColor = '';
-    }
-  }
-}
-
-// ================= CSV Panel Initialization =================
+// ===================== Table Initialization =====================
 function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtnId, undoBtnId, isRightTable = false) {
   let csvData = [];
   let headerRow = [];
@@ -106,6 +118,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     reader.readAsText(file);
   });
 
+  // Basic Row Shifting Logic
   document.getElementById(addBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
     if (!tableBody || selectedRows.size === 0) return;
@@ -113,9 +126,8 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     let firstIdx = allRows.length;
     allRows.forEach((tr, i) => { if (selectedRows.has(tr) && i < firstIdx) firstIdx = i; });
 
-    const numRows = selectedRows.size;
     const addedRows = [];
-    for (let i = 0; i < numRows; i++) {
+    for (let i = 0; i < selectedRows.size; i++) {
       const tr = document.createElement('tr');
       const numCols = isRightTable ? 4 : 6;
       for (let c = 0; c < numCols; c++) {
@@ -127,9 +139,8 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       tableBody.insertBefore(tr, tableBody.rows[firstIdx]);
       addedRows.push(tr);
     }
-    updateTotals();
     updatePaymentIDHighlights();
-    if (isRedFilterActive) applyRedFilter();
+    refreshBoth();
     actionHistory.push({ type: 'add', rows: addedRows });
   });
 
@@ -144,8 +155,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       }
     });
     selectedRows.clear();
-    updateTotals();
-    updatePaymentIDHighlights();
+    refreshBoth();
     if (removedRows.length > 0) actionHistory.push({ type: 'delete', rows: removedRows });
   });
 
@@ -162,8 +172,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         else tableBody.appendChild(row);
       });
     }
-    updateTotals();
-    updatePaymentIDHighlights();
+    refreshBoth();
   });
 
   function toggleRowSelection(tr, e) {
@@ -179,53 +188,44 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
   function parseCSV(text) {
     const lines = text.trim().split('\n');
     headerRow = parseCSVLine(lines[0]);
-    csvData = lines.slice(1).map(line => parseCSVLine(line));
+    csvData = lines.slice(1).map(line => parseCSVLine(line)).filter(r => r.length > 1);
+    
     colMethodIndex = headerRow.indexOf("Method");
     colPaymentIndex = headerRow.indexOf(isRightTable ? "Payment ID" : "PaymentRef");
     colFIndex = headerRow.indexOf("Date");
     colMIndex = headerRow.indexOf("Amount");
     colHIndex = isRightTable ? headerRow.indexOf("Card last 4") : headerRow.indexOf("Account");
 
-    if (!isRightTable) generateMethodCheckboxes();
-    else generateChannelCheckboxes();
+    const filterId = isRightTable ? 'channelCheckboxesRight' : 'methodCheckboxesLeft';
+    generateCheckboxes(filterId, csvData, isRightTable ? headerRow.indexOf("Channel") : colMethodIndex, !isRightTable);
     updateOutput();
   }
 
   function parseCSVLine(line) {
     const result = [];
-    let current = '', inQuotes = false;
+    let cur = '', q = false;
     for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"' && line[i - 1] !== '\\') inQuotes = !inQuotes;
-      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
-      else current += char;
+      if (line[i] === '"' && line[i-1] !== '\\') q = !q;
+      else if (line[i] === ',' && !q) { result.push(cur); cur = ''; }
+      else cur += line[i];
     }
-    result.push(current);
-    return result.map(c => c.replace(/^"(.*)"$/, '$1'));
+    result.push(cur);
+    return result.map(c => c.replace(/^"(.*)"$/, '$1').trim());
   }
 
-  function generateMethodCheckboxes() {
-    const div = document.getElementById(filterDivId);
+  function generateCheckboxes(id, data, col, isLeft) {
+    const div = document.getElementById(id);
     div.innerHTML = '';
-    const methods = [...new Set(csvData.map(r => r[colMethodIndex]?.replace(/\s*\(.*?\)\s*/g, '').trim()).filter(m => m))].sort();
-    methods.forEach(method => {
-      const lbl = document.createElement('label');
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = method;
-      cb.addEventListener('change', refreshBoth);
-      lbl.append(cb, ` ${method}`); div.appendChild(lbl);
-    });
-  }
+    const items = [...new Set(data.map(r => {
+        let v = (r[col] || '').trim();
+        return isLeft ? v.replace(/\s*\(.*?\)\s*/g, '').trim() : v;
+    }).filter(v => v !== ''))].sort();
 
-  function generateChannelCheckboxes() {
-    const div = document.getElementById('channelCheckboxesRight');
-    div.innerHTML = '';
-    const colChannelIndex = headerRow.indexOf("Channel");
-    const channels = [...new Set(csvData.map(r => (r[colChannelIndex] || 'Blank').trim() || 'Blank'))].sort();
-    channels.forEach(channel => {
+    items.forEach(item => {
       const lbl = document.createElement('label');
-      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = channel;
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = item;
       cb.addEventListener('change', refreshBoth);
-      lbl.append(cb, ` ${channel}`); div.appendChild(lbl);
+      lbl.append(cb, ` ${item}`); div.appendChild(lbl);
     });
   }
 
@@ -239,14 +239,17 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     let rows = [...csvData];
 
     if (checked.length > 0) {
+      const colIdx = isRightTable ? headerRow.indexOf("Channel") : colMethodIndex;
       rows = rows.filter(r => {
-          const val = isRightTable ? (r[headerRow.indexOf("Channel")] || 'Blank').trim() || 'Blank' : r[colMethodIndex].replace(/\s*\(.*?\)\s*/g, '').trim();
-          return checked.includes(val);
+          let v = (r[colIdx] || '').trim();
+          if (!isRightTable) v = v.replace(/\s*\(.*?\)\s*/g, '').trim();
+          return checked.includes(v);
       });
     }
 
-    if (isRightTable && headerRow.indexOf("Status") !== -1) {
-        rows = rows.filter(r => r[headerRow.indexOf("Status")].trim().toUpperCase() !== 'FAILED');
+    if (isRightTable) {
+        const sIdx = headerRow.indexOf("Status");
+        if (sIdx !== -1) rows = rows.filter(r => (r[sIdx] || '').toUpperCase() !== 'FAILED');
     }
 
     rows.sort((a, b) => new Date(a[colFIndex]) - new Date(b[colFIndex]));
@@ -261,11 +264,11 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
       tr.addEventListener('click', (e) => toggleRowSelection(tr, e));
       headers.forEach(h => {
         const td = document.createElement('td');
-        td.style.height = '20px';
-        if (h === 'PaymentRef' || h === 'Payment ID') td.textContent = r[colPaymentIndex];
-        else if (h === 'Account' || h === 'Card last 4') td.textContent = r[colHIndex];
-        else if (h === 'Date') td.textContent = r[colFIndex];
-        else td.textContent = parseFloat(r[headerRow.indexOf(h)] || 0).toFixed(2);
+        const idx = headerRow.indexOf(h);
+        if (h === 'Payment ID' || h === 'PaymentRef') td.textContent = r[colPaymentIndex] || '';
+        else if (h === 'Card last 4' || h === 'Account') td.textContent = r[colHIndex] || '';
+        else if (h === 'Date') td.textContent = r[colFIndex] || '';
+        else td.textContent = idx !== -1 ? parseFloat(r[idx] || 0).toFixed(2) : '0.00';
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -277,51 +280,45 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     table.appendChild(tbody);
     outputDiv.appendChild(table);
 
-    if (isMatchAllActive && isRightTable) {
-        setTimeout(runAlignmentLogic, 10); 
-    }
-
-    updateTotals();
-    updatePaymentIDHighlights();
-    if (isRedFilterActive) applyRedFilter();
-  }
-
-  function updateTotals() {
-    const tableBody = document.querySelector(`#${outputDivId} table tbody`);
-    if (!tableBody) return;
-    const totalsRow = tableBody.querySelector('.totals-row');
-    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'));
-    const numCols = rows[0]?.children.length || 0;
-    const sums = new Array(numCols).fill(0);
-
-    rows.forEach(tr => {
-      // Only count rows that are currently visible
-      if (tr.style.display !== 'none') {
-        for (let i = 0; i < numCols; i++) {
-          const val = parseFloat(tr.children[i]?.textContent);
-          if (!isNaN(val)) sums[i] += val;
-        }
-      }
-    });
-
-    totalsRow.innerHTML = '';
-    for (let i = 0; i < numCols; i++) {
-      const td = document.createElement('td');
-      if (i === 0) {
-        td.textContent = 'Total';
-      } else if (isRightTable) {
-        if (i === 1 || i === 2) td.textContent = '';
-        else td.textContent = sums[i] ? sums[i].toFixed(2) : '';
-      } else {
-        if (i === 2) td.textContent = '';
-        else td.textContent = sums[i] ? sums[i].toFixed(2) : '';
-      }
-      totalsRow.appendChild(td);
+    if (isMatchAllActive && isRightTable) setTimeout(runAlignmentLogic, 10); 
+    else {
+        updatePaymentIDHighlights();
+        isRedFilterActive ? applyRedFilter() : updateTotalsDOM(outputDivId, isRightTable);
     }
   }
 }
 
-// ===================== Standalone Alignment Logic =====================
+// ===================== Alignment Logic =====================
+function insertBlankRow(tbody, index, numCols) {
+  const tr = document.createElement('tr');
+  for (let c = 0; c < numCols; c++) {
+    const td = document.createElement('td');
+    td.style.height = '20px';
+    tr.appendChild(td);
+  }
+  tbody.insertBefore(tr, tbody.rows[index]);
+}
+
+function updatePaymentIDHighlights() {
+  const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
+  const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
+  const maxLength = Math.max(leftRows.length, rightRows.length);
+
+  for (let index = 0; index < maxLength; index++) {
+    const lRow = leftRows[index], rRow = rightRows[index];
+    const lCell = lRow?.cells[0], rCell = rRow?.cells[0];
+    const lV = lCell?.textContent.trim() || "", rV = rCell?.textContent.trim() || "";
+
+    if (lV !== rV || lV === "" || rV === "") {
+      if (lCell) lCell.style.backgroundColor = '#f8d7da'; 
+      if (rCell) rCell.style.backgroundColor = '#f8d7da'; 
+    } else {
+      if (lCell) lCell.style.backgroundColor = '';
+      if (rCell) rCell.style.backgroundColor = '';
+    }
+  }
+}
+
 function runAlignmentLogic() {
   const leftTbody = document.querySelector('#outputLeft table tbody');
   const rightTbody = document.querySelector('#outputRight table tbody');
@@ -329,58 +326,45 @@ function runAlignmentLogic() {
 
   let i = 0;
   while (i < Math.max(leftTbody.rows.length - 1, rightTbody.rows.length - 1)) {
-    const leftRow = leftTbody.rows[i];
-    const rightRow = rightTbody.rows[i];
-    if (leftRow?.classList.contains('totals-row') || rightRow?.classList.contains('totals-row')) break;
+    const lRow = leftTbody.rows[i], rRow = rightTbody.rows[i];
+    if (lRow?.classList.contains('totals-row') || rRow?.classList.contains('totals-row')) break;
 
-    const leftID = leftRow?.cells[0]?.textContent.trim();
-    const rightID = rightRow?.cells[0]?.textContent.trim();
+    const lID = lRow?.cells[0]?.textContent.trim() || "";
+    const rID = rRow?.cells[0]?.textContent.trim() || "";
 
-    if (leftID === rightID || (!leftID && !rightID)) {
-      i++; continue;
-    }
+    if (lID === rID && lID !== "") { i++; continue; }
 
-    let foundInRight = false;
+    let fInR = false;
     for (let r = i + 1; r < rightTbody.rows.length - 1; r++) {
-      if (rightTbody.rows[r].cells[0].textContent.trim() === leftID) { foundInRight = true; break; }
+      if (rightTbody.rows[r].cells[0].textContent.trim() === lID && lID !== "") { fInR = true; break; }
     }
-
-    let foundInLeft = false;
+    let fInL = false;
     for (let l = i + 1; l < leftTbody.rows.length - 1; l++) {
-      if (leftTbody.rows[l].cells[0].textContent.trim() === rightID) { foundInLeft = true; break; }
+      if (leftTbody.rows[l].cells[0].textContent.trim() === rID && rID !== "") { fInL = true; break; }
     }
 
-    if (foundInRight) {
-      insertBlankRow(leftTbody, i, 6);
-    } else if (foundInLeft) {
-      insertBlankRow(rightTbody, i, 4);
-    } else {
-      i++;
-    }
+    if (fInR) insertBlankRow(leftTbody, i, 6);
+    else if (fInL) insertBlankRow(rightTbody, i, 4);
+    else i++;
   }
 
-  let leftDataRows = leftTbody.querySelectorAll('tr:not(.totals-row)').length;
-  let rightDataRows = rightTbody.querySelectorAll('tr:not(.totals-row)').length;
-
-  while (leftDataRows < rightDataRows) {
-    insertBlankRow(leftTbody, leftDataRows, 6);
-    leftDataRows++;
-  }
-  while (rightDataRows < leftDataRows) {
-    insertBlankRow(rightTbody, rightDataRows, 4);
-    rightDataRows++;
-  }
+  let lCount = leftTbody.querySelectorAll('tr:not(.totals-row)').length;
+  let rCount = rightTbody.querySelectorAll('tr:not(.totals-row)').length;
+  while (lCount < rCount) { insertBlankRow(leftTbody, lCount, 6); lCount++; }
+  while (rCount < lCount) { insertBlankRow(rightTbody, rCount, 4); rCount++; }
 
   updatePaymentIDHighlights();
   if (isRedFilterActive) applyRedFilter();
+  else {
+      updateTotalsDOM('outputLeft', false);
+      updateTotalsDOM('outputRight', true);
+  }
 }
 
-// ================== Initialize ==================
+// ================== Initialization ==================
 initCSVPanel('csvFileLeft', 'methodCheckboxesLeft', 'outputLeft', 'addRowBtnLeft', 'removeRowBtnLeft', 'undoBtnLeft', false);
 initCSVPanel('csvFileRight', 'channelCheckboxesRight', 'outputRight', 'addRowBtnRight', 'removeRowBtnRight', 'undoBtnRight', true);
 
-// Scroll Sync
-const leftBox = document.getElementById('outputLeft');
-const rightBox = document.getElementById('outputRight');
-leftBox.onscroll = () => rightBox.scrollTop = leftBox.scrollTop;
-rightBox.onscroll = () => leftBox.scrollTop = rightBox.scrollTop;
+const lBox = document.getElementById('outputLeft'), rBox = document.getElementById('outputRight');
+lBox.onscroll = () => rBox.scrollTop = lBox.scrollTop;
+rBox.onscroll = () => lBox.scrollTop = rBox.scrollTop;
