@@ -1,11 +1,8 @@
-/* =================== Variables & Full-Screen Reset =================== */
 :root {
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
     --success: #16a34a;
-    --success-hover: #15803d;
     --danger: #dc2626;
-    --danger-hover: #b91c1c;
     --undo: #64748b;
     --bg-main: #f1f5f9;
     --bg-card: #ffffff;
@@ -18,106 +15,62 @@
 
 body { 
     font-family: 'Segoe UI', system-ui, sans-serif; 
-    padding: 10px; 
-    background-color: var(--bg-main); 
-    color: var(--text-main);
-    margin: 0; 
-    height: 100vh; /* Fill viewport height */
-    display: flex;
-    flex-direction: column;
+    padding: 10px; background-color: var(--bg-main); 
+    color: var(--text-main); margin: 0; 
+    height: 100vh; display: flex; flex-direction: column;
 }
 
-/* =================== Header & Global Controls =================== */
 .header-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    flex-shrink: 0; /* Don't compress header */
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px; flex-shrink: 0;
 }
 
-.main-title-group h1 {
-    font-size: 20px;
-    margin: 0;
-    color: var(--primary);
-}
+.main-title-group h1 { font-size: 20px; margin: 0; color: var(--primary); }
 
 .global-controls-container {
-    display: flex;
-    gap: 8px;
-    background: var(--bg-card);
-    padding: 8px 15px;
-    border-radius: 6px;
-    border: 1px solid var(--border);
-    align-items: center;
+    display: flex; gap: 8px; background: var(--bg-card);
+    padding: 8px 15px; border-radius: 6px; border: 1px solid var(--border);
 }
 
-/* =================== Fluid Panel Layout =================== */
-.flex-container { 
-    display: flex; 
-    flex: 1; /* Grow to fill remaining vertical space */
-    gap: 10px;
-    width: 100%;
-    min-height: 0; /* Important for flex-grow scrolling */
-}
+.flex-container { display: flex; flex: 1; gap: 10px; width: 100%; min-height: 0; }
 
 .panel { 
-    flex: 1; 
-    background: var(--bg-card);
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    display: flex;
-    flex-direction: column; /* Stack header, filters, buttons, and table */
-    min-width: 0; 
+    flex: 1; background: var(--bg-card); padding: 12px;
+    border-radius: 8px; border: 1px solid var(--border);
+    display: flex; flex-direction: column; min-width: 0; 
 }
 
 .title-with-button {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 8px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px; margin-bottom: 8px;
 }
 
-.title-with-button h3 {
-    margin: 0;
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
+.title-with-button h3 { margin: 0; font-size: 13px; text-transform: uppercase; }
 
-.title-with-button input[type="file"] { font-size: 11px; }
-
-/* =================== Filters & UI Elements =================== */
 .checkbox-area { margin-bottom: 8px; }
 
+/* Enhanced Filter Spacing */
 .checkboxes { 
-    margin-top: 5px;
-    font-size: 11px; 
-    height: 70px; /* More compact filter area */
-    overflow-y: auto; 
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    padding: 4px;
-    background-color: #f8fafc;
+    margin-top: 5px; font-size: 11px; height: 85px; 
+    overflow-y: auto; border: 1px solid var(--border);
+    border-radius: 4px; padding: 2px; background-color: #f8fafc;
 }
 
-.button-row {
-    display: flex;
-    gap: 5px;
-    margin-bottom: 8px;
+.checkboxes label {
+    display: flex; align-items: center;
+    padding: 6px 8px; margin-bottom: 2px;
+    cursor: pointer; border-radius: 3px;
+    transition: background-color 0.2s;
+    border-bottom: 1px solid #f1f5f9;
 }
 
-button {
-    border-radius: 4px;
-    padding: 5px 10px;
-    font-size: 11px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    color: white;
-}
+.checkboxes label:hover { background-color: #e2e8f0; color: var(--primary); }
+
+.checkboxes input[type="checkbox"] { margin-right: 10px; cursor: pointer; transform: scale(1.1); }
+
+.button-row { display: flex; gap: 5px; margin-bottom: 8px; }
+
+button { border-radius: 4px; padding: 5px 10px; font-size: 11px; font-weight: 600; cursor: pointer; border: none; color: white; }
 
 .primary-btn { background-color: var(--primary); }
 .filter-btn { background-color: var(--undo); }
@@ -126,50 +79,21 @@ button {
 .btn-remove { background-color: var(--danger); }
 .btn-undo { background-color: var(--undo); }
 
-/* =================== The Table (Maximum Space) =================== */
-.table-container {
-    flex: 1; /* Table fills the rest of the panel */
-    width: 100%;
-    overflow: auto;
-    border: 1px solid var(--border);
-    background: #fff;
-}
+.table-container { flex: 1; width: 100%; overflow: auto; border: 1px solid var(--border); background: #fff; }
 
-table { 
-    width: 100%; 
-    border-collapse: collapse;
-    font-size: 11px; /* High density text */
-}
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
 
 th {
-    background-color: #e2e8f0; 
-    position: sticky; 
-    top: 0; 
-    z-index: 10; 
-    border-bottom: 2px solid var(--border);
-    padding: 8px;
-    text-align: left;
+    background-color: #e2e8f0; position: sticky; top: 0; z-index: 10; 
+    border-bottom: 2px solid var(--border); padding: 8px; text-align: left;
 }
 
-td { 
-    border: 1px solid var(--border);
-    padding: 4px 8px; 
-    white-space: nowrap; 
-}
+td { border: 1px solid var(--border); padding: 4px 8px; white-space: nowrap; }
 
-/* Sticky Totals Row */
 tr.totals-row td { 
-    font-weight: bold; 
-    background-color: #f1f5f9; 
-    position: sticky; 
-    bottom: 0; 
-    z-index: 5; 
-    border-top: 2px solid var(--border);
+    font-weight: bold; background-color: #f1f5f9; 
+    position: sticky; bottom: 0; z-index: 5; border-top: 2px solid var(--border);
 }
 
-tr.selected td {
-    background-color: #eff6ff !important;
-    box-shadow: inset 0 0 0 1px var(--primary);
-}
-
+tr.selected td { background-color: #eff6ff !important; box-shadow: inset 0 0 0 1px var(--primary); }
 .info-text { font-size: 11px; color: var(--text-muted); }
