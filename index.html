@@ -3,58 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV Filter Tables Side by Side</title>
+    <title>Advanced CSV Reconciliation Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="header-row">
-    <h1>CSV Filter Tables Side by Side</h1>
+    <div class="main-title-group">
+        <h1>Payments Reconciliation Dashboard</h1>
+        <span class="info-text">Automated horizontal alignment for Payment IDs</span>
+    </div>
     
     <div class="global-controls-container">
-        <div class="action-group">
-          <button id="matchAllBtn" class="primary-btn">Match All Payment IDs</button>
-          <button id="showRedOnlyBtn" class="primary-btn" style="background-color: var(--undo);">Show Red Highlights Only</button>
-          <span class="info-text">Aligns matching IDs horizontally</span>
-        </div>
+        <button id="matchAllBtn" class="primary-btn">Match All Payment IDs</button>
+        <button id="showRedOnlyBtn" class="primary-btn filter-btn">Show Red Highlights Only</button>
+        <button id="resetViewBtn" class="primary-btn reset-btn">Reset All</button>
     </div>
 </div>
 
 <div class="flex-container">
-    <div class="left-panel">
+    <div class="panel left-panel">
         <div class="panel-header">
-            <h3>Left Table (PaymentRef)</h3>
-            <input type="file" id="csvFileLeft" accept=".csv" />
+            <div class="title-with-button">
+                <h3>Back Office Payments Report</h3>
+                <input type="file" id="csvFileLeft" accept=".csv" />
+            </div>
         </div>
         
-        <div class="checkboxes-container">
+        <div class="checkbox-area">
             <strong>Filter by Method:</strong>
             <div class="checkboxes" id="methodCheckboxesLeft"></div>
         </div>
 
         <div class="button-row">
-            <button id="addRowBtnLeft" class="btn-shift">Shift Row(s) Down</button>
-            <button id="removeRowBtnLeft" class="btn-remove">Remove Selected</button>
+            <button id="addRowBtnLeft" class="btn-shift">Shift Down</button>
+            <button id="removeRowBtnLeft" class="btn-remove">Remove</button>
             <button id="undoBtnLeft" class="btn-undo">Undo</button>
         </div>
 
         <div class="table-container" id="outputLeft"></div>
     </div>
 
-    <div class="right-panel">
+    <div class="panel right-panel">
         <div class="panel-header">
-            <h3>Right Table (Payment ID)</h3>
-            <input type="file" id="csvFileRight" accept=".csv" />
+            <div class="title-with-button">
+                <h3>Financial Services Payments Report</h3>
+                <input type="file" id="csvFileRight" accept=".csv" />
+            </div>
         </div>
 
-        <div class="checkboxes-container">
+        <div class="checkbox-area">
             <strong>Filter by Channel:</strong>
             <div class="checkboxes" id="channelCheckboxesRight"></div>
         </div>
 
         <div class="button-row">
-            <button id="addRowBtnRight" class="btn-shift">Shift Row(s) Down</button>
-            <button id="removeRowBtnRight" class="btn-remove">Remove Selected</button>
+            <button id="addRowBtnRight" class="btn-shift">Shift Down</button>
+            <button id="removeRowBtnRight" class="btn-remove">Remove</button>
             <button id="undoBtnRight" class="btn-undo">Undo</button>
         </div>
 
@@ -63,5 +68,5 @@
 </div>
 
 <script src="script.js"></script>
-</body>
+  </body>
 </html>
