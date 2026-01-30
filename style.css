@@ -49,7 +49,6 @@ body {
 
 .checkbox-area { margin-bottom: 8px; }
 
-/* Enhanced Filter Spacing */
 .checkboxes { 
     margin-top: 5px; font-size: 11px; height: 85px; 
     overflow-y: auto; border: 1px solid var(--border);
