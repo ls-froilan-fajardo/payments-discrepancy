@@ -1,332 +1,326 @@
-// ===================== Global Dynamic Payment ID Highlight =====================
+// ===================== Global State =====================
+let updateLeftTable = null;
+let updateRightTable = null;
+let isMatchAllActive = false; 
+
+// Unified Sort Listener
+document.querySelectorAll('input[name="globalSort"]').forEach(radio => {
+  radio.addEventListener('change', refreshBoth);
+});
+
+// ===================== Match All Toggle =====================
+document.getElementById('matchAllBtn').addEventListener('click', function() {
+  isMatchAllActive = !isMatchAllActive;
+  this.style.backgroundColor = isMatchAllActive ? '#16a34a' : '';
+  this.textContent = isMatchAllActive ? 'Alignment: ON' : 'Match All Payment IDs';
+  refreshBoth();
+});
+
+function refreshBoth() {
+    if (updateLeftTable) updateLeftTable();
+    if (updateRightTable) updateRightTable();
+}
+
+// ===================== HELPER: Insert Blank Row =====================
+// This was the missing function causing the ReferenceError
+function insertBlankRow(tbody, index, numCols) {
+  const tr = document.createElement('tr');
+  for (let c = 0; c < numCols; c++) {
+    const td = document.createElement('td');
+    td.style.height = '20px';
+    tr.appendChild(td);
+  }
+  tbody.insertBefore(tr, tbody.rows[index]);
+}
+
+// ===================== Global Dynamic Highlight =====================
 function updatePaymentIDHighlights() {
   const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
   const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
 
   rightRows.forEach((tr, index) => {
-    const paymentIDCell = tr.cells[0]; // Payment ID in right table
-    const leftPaymentCell = leftRows[index]?.cells[0]; // PaymentRef in left table
-    if(paymentIDCell) {
-      if(!leftPaymentCell || paymentIDCell.textContent !== leftPaymentCell.textContent) {
-        paymentIDCell.style.backgroundColor = '#f8d7da'; // red highlight
+    const paymentIDCell = tr.cells[0]; 
+    const leftPaymentCell = leftRows[index]?.cells[0]; 
+    if (paymentIDCell) {
+      if (!leftPaymentCell || paymentIDCell.textContent.trim() !== leftPaymentCell.textContent.trim()) {
+        paymentIDCell.style.backgroundColor = '#f8d7da'; 
       } else {
-        paymentIDCell.style.backgroundColor = ''; // remove highlight
+        paymentIDCell.style.backgroundColor = ''; 
       }
     }
   });
 }
 
 // ================= CSV Panel Initialization =================
-function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtnId, undoBtnId, sortRadioName, isRightTable=false){
+function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtnId, undoBtnId, isRightTable = false) {
   let csvData = [];
   let headerRow = [];
   let selectedRows = new Set();
-  let lastClickedRow = null;
   let actionHistory = [];
   let colMethodIndex, colPaymentIndex, colHIndex, colFIndex, colMIndex;
 
-  document.getElementById(fileInputId).addEventListener('change', function(event){
+  if (isRightTable) updateRightTable = updateOutput;
+  else updateLeftTable = updateOutput;
+
+  document.getElementById(fileInputId).addEventListener('change', function(event) {
     const file = event.target.files[0];
-    if(!file) return;
+    if (!file) return;
     const reader = new FileReader();
     reader.onload = e => parseCSV(e.target.result);
     reader.readAsText(file);
   });
 
-  document.querySelectorAll(`input[name="${sortRadioName}"]`).forEach(radio => radio.addEventListener('change', updateOutput));
-
-  // Add row
-  document.getElementById(addBtnId).addEventListener('click', function(){
+  // Shift Row Logic
+  document.getElementById(addBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
-    if(!tableBody || selectedRows.size===0) return;
+    if (!tableBody || selectedRows.size === 0) return;
     const allRows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'));
-    let lastIndex = -1;
-    allRows.forEach((tr,i)=>{ if(selectedRows.has(tr)) lastIndex=i; });
+    let firstIdx = allRows.length;
+    allRows.forEach((tr, i) => { if (selectedRows.has(tr) && i < firstIdx) firstIdx = i; });
+
     const numRows = selectedRows.size;
     const addedRows = [];
-    for(let i=0;i<numRows;i++){
-      const tr=document.createElement('tr');
-      const numCols = isRightTable ? 4 : 6; // right table has only 4 columns now
-      for(let c=0;c<numCols;c++){
-        const td=document.createElement('td');
-        td.textContent='';
-        td.contentEditable=false;
-        td.style.height='20px';
+    for (let i = 0; i < numRows; i++) {
+      const tr = document.createElement('tr');
+      const numCols = isRightTable ? 4 : 6;
+      for (let c = 0; c < numCols; c++) {
+        const td = document.createElement('td');
+        td.style.height = '20px';
         tr.appendChild(td);
       }
-      tr.addEventListener('click',(e)=>toggleRowSelection(tr,e));
-      if(lastIndex>=0 && lastIndex<tableBody.rows.length-1){
-        tableBody.insertBefore(tr, tableBody.rows[lastIndex+1]);
-        lastIndex++;
-      } else tableBody.appendChild(tr);
+      tr.addEventListener('click', (e) => toggleRowSelection(tr, e));
+      tableBody.insertBefore(tr, tableBody.rows[firstIdx]);
       addedRows.push(tr);
     }
     updateTotals();
-    updatePaymentIDHighlights(); // <-- dynamic highlight
-    actionHistory.push({type:'add', rows:addedRows});
+    updatePaymentIDHighlights();
+    actionHistory.push({ type: 'add', rows: addedRows });
   });
 
-  // Remove row
-  document.getElementById(removeBtnId).addEventListener('click', function(){
+  document.getElementById(removeBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
-    if(!tableBody) return;
+    if (!tableBody) return;
     const removedRows = [];
-    selectedRows.forEach(tr=>{
-      if(tr.parentNode){
-        removedRows.push({row:tr, nextSibling:tr.nextSibling});
+    selectedRows.forEach(tr => {
+      if (tr.parentNode) {
+        removedRows.push({ row: tr, nextSibling: tr.nextSibling });
         tr.parentNode.removeChild(tr);
       }
     });
     selectedRows.clear();
-    lastClickedRow=null;
     updateTotals();
-    updatePaymentIDHighlights(); // <-- dynamic highlight
-    if(removedRows.length>0) actionHistory.push({type:'delete', rows:removedRows});
+    updatePaymentIDHighlights();
+    if (removedRows.length > 0) actionHistory.push({ type: 'delete', rows: removedRows });
   });
 
-  // Undo
-  document.getElementById(undoBtnId).addEventListener('click', function(){
+  document.getElementById(undoBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
-    if(!tableBody || actionHistory.length===0) return;
+    if (!tableBody || actionHistory.length === 0) return;
     const lastAction = actionHistory.pop();
-    if(lastAction.type==='add'){
-      lastAction.rows.forEach(tr=>{ if(tr.parentNode) tr.parentNode.removeChild(tr); });
-    } else if(lastAction.type==='delete'){
-      lastAction.rows.forEach(obj=>{
-        const {row, nextSibling} = obj;
-        if(nextSibling && nextSibling.parentNode) tableBody.insertBefore(row, nextSibling);
+    if (lastAction.type === 'add') {
+      lastAction.rows.forEach(tr => { if (tr.parentNode) tr.parentNode.removeChild(tr); });
+    } else if (lastAction.type === 'delete') {
+      lastAction.rows.forEach(obj => {
+        const { row, nextSibling } = obj;
+        if (nextSibling && nextSibling.parentNode) tableBody.insertBefore(row, nextSibling);
         else tableBody.appendChild(row);
       });
     }
     updateTotals();
-    updatePaymentIDHighlights(); // <-- dynamic highlight
+    updatePaymentIDHighlights();
   });
 
-  function toggleRowSelection(tr,e){
-    const allRows = Array.from(tr.parentNode.querySelectorAll('tr:not(.totals-row)'));
-    if(e.shiftKey && lastClickedRow){
-      const startIndex = allRows.indexOf(lastClickedRow);
-      const endIndex = allRows.indexOf(tr);
-      const [min,max] = [Math.min(startIndex,endIndex), Math.max(startIndex,endIndex)];
-      for(let i=min;i<=max;i++){ allRows[i].classList.add('selected'); selectedRows.add(allRows[i]); }
-    } else if(e.ctrlKey || e.metaKey){
-      if(selectedRows.has(tr)){ tr.classList.remove('selected'); selectedRows.delete(tr); }
-      else { tr.classList.add('selected'); selectedRows.add(tr); }
-      lastClickedRow = tr;
-    } else {
-      selectedRows.forEach(r=>r.classList.remove('selected'));
-      selectedRows.clear();
-      tr.classList.add('selected');
-      selectedRows.add(tr);
-      lastClickedRow = tr;
+  function toggleRowSelection(tr, e) {
+    if (!e.ctrlKey && !e.metaKey) {
+        tr.parentNode.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
+        selectedRows.clear();
     }
+    tr.classList.toggle('selected');
+    if (tr.classList.contains('selected')) selectedRows.add(tr);
+    else selectedRows.delete(tr);
   }
 
-  function parseCSV(text){
+  function parseCSV(text) {
     const lines = text.trim().split('\n');
     headerRow = parseCSVLine(lines[0]);
     csvData = lines.slice(1).map(line => parseCSVLine(line));
-
     colMethodIndex = headerRow.indexOf("Method");
     colPaymentIndex = headerRow.indexOf(isRightTable ? "Payment ID" : "PaymentRef");
     colFIndex = headerRow.indexOf("Date");
     colMIndex = headerRow.indexOf("Amount");
     colHIndex = isRightTable ? headerRow.indexOf("Card last 4") : headerRow.indexOf("Account");
 
-    if(!isRightTable){
-      generateMethodCheckboxes();
-    } else {
-      generateChannelCheckboxes();
-    }
-
+    if (!isRightTable) generateMethodCheckboxes();
+    else generateChannelCheckboxes();
     updateOutput();
   }
 
-  function parseCSVLine(line){
-    const result=[];
-    let current='', inQuotes=false;
-    for(let i=0;i<line.length;i++){
-      const char=line[i];
-      if(char==='"' && line[i-1]!=='\\') inQuotes=!inQuotes;
-      else if(char===',' && !inQuotes){ result.push(current); current=''; }
-      else current+=char;
+  function parseCSVLine(line) {
+    const result = [];
+    let current = '', inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === '"' && line[i - 1] !== '\\') inQuotes = !inQuotes;
+      else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
+      else current += char;
     }
     result.push(current);
-    return result.map(c=>c.replace(/^"(.*)"$/,'$1'));
+    return result.map(c => c.replace(/^"(.*)"$/, '$1'));
   }
 
-  function cleanMethod(method){ return method? method.replace(/\s*\(.*?\)\s*/g,'').trim() : ''; }
-
-  // ===================== Left Table Method Filter =====================
-  function generateMethodCheckboxes(){
+  function generateMethodCheckboxes() {
     const div = document.getElementById(filterDivId);
-    div.innerHTML='';
-    const methods = [...new Set(csvData.map(r=>cleanMethod(r[colMethodIndex])).filter(m=>m!=''))].sort();
-    methods.forEach(method=>{
-      const label=document.createElement('label');
-      const checkbox=document.createElement('input');
-      checkbox.type='checkbox';
-      checkbox.value=method;
-      checkbox.addEventListener('change', updateOutput);
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(' '+method));
-      div.appendChild(label);
+    div.innerHTML = '';
+    const methods = [...new Set(csvData.map(r => r[colMethodIndex]?.replace(/\s*\(.*?\)\s*/g, '').trim()).filter(m => m))].sort();
+    methods.forEach(method => {
+      const lbl = document.createElement('label');
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = method;
+      cb.addEventListener('change', refreshBoth);
+      lbl.append(cb, ` ${method}`); div.appendChild(lbl);
     });
   }
 
-  // ===================== Right Table Channel Filter =====================
-  function generateChannelCheckboxes(){
+  function generateChannelCheckboxes() {
     const div = document.getElementById('channelCheckboxesRight');
-    div.innerHTML='';
-    if(csvData.length===0) return;
+    div.innerHTML = '';
     const colChannelIndex = headerRow.indexOf("Channel");
-    if(colChannelIndex === -1) return;
-    const channels = [...new Set(csvData.map(r=>{
-      let val = r[colChannelIndex]?r[colChannelIndex].trim():'Blank';
-      return val===''?'Blank':val;
-    }))].sort();
-    channels.forEach(channel=>{
-      const label = document.createElement('label');
-      const checkbox = document.createElement('input');
-      checkbox.type='checkbox';
-      checkbox.value = channel;
-      checkbox.addEventListener('change', updateOutput);
-      label.appendChild(checkbox);
-      label.appendChild(document.createTextNode(' ' + channel));
-      div.appendChild(label);
+    const channels = [...new Set(csvData.map(r => (r[colChannelIndex] || 'Blank').trim() || 'Blank'))].sort();
+    channels.forEach(channel => {
+      const lbl = document.createElement('label');
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = channel;
+      cb.addEventListener('change', refreshBoth);
+      lbl.append(cb, ` ${channel}`); div.appendChild(lbl);
     });
   }
 
-  // ===================== Update Output Table =====================
-  function updateOutput(){
+  function updateOutput() {
     selectedRows.clear();
-    lastClickedRow=null;
-    const outputDiv=document.getElementById(outputDivId);
-    outputDiv.innerHTML='';
+    const outputDiv = document.getElementById(outputDivId);
+    outputDiv.innerHTML = '';
+    if (csvData.length === 0) return;
 
-    let checkedFilters = Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb=>cb.value);
+    let checked = Array.from(document.querySelectorAll(`#${filterDivId} input:checked`)).map(cb => cb.value);
+    let rows = [...csvData];
 
-    let filteredRows = csvData;
-
-    // Left table method filter
-    if(!isRightTable && checkedFilters.length>0){
-      filteredRows = csvData.filter(r=>checkedFilters.includes(cleanMethod(r[colMethodIndex])));
-    }
-
-    // Right table channel filter
-    if(isRightTable && checkedFilters.length>0){
-      const colChannelIndex = headerRow.indexOf("Channel");
-      filteredRows = filteredRows.filter(r=>{
-        let val = r[colChannelIndex]?r[colChannelIndex].trim():'Blank';
-        val = val===''?'Blank':val;
-        return checkedFilters.includes(val);
+    if (checked.length > 0) {
+      rows = rows.filter(r => {
+          const val = isRightTable ? (r[headerRow.indexOf("Channel")] || 'Blank').trim() || 'Blank' : r[colMethodIndex].replace(/\s*\(.*?\)\s*/g, '').trim();
+          return checked.includes(val);
       });
     }
 
-    // Remove rows where Status = FAILED
-    if(isRightTable){
-      const colStatusIndex = headerRow.indexOf("Status");
-      if(colStatusIndex !== -1){
-        filteredRows = filteredRows.filter(r => (r[colStatusIndex] || '').trim().toUpperCase() !== 'FAILED');
-      }
+    if (isRightTable && headerRow.indexOf("Status") !== -1) {
+        rows = rows.filter(r => r[headerRow.indexOf("Status")].trim().toUpperCase() !== 'FAILED');
     }
 
-    // Sorting
-    const sortOption = document.querySelector(`input[name="${sortRadioName}"]:checked`)?.value || 'date';
-    if(sortOption==='amount') filteredRows.sort((a,b)=>parseFloat(b[colMIndex]||0)-parseFloat(a[colMIndex]||0));
-    else filteredRows.sort((a,b)=>new Date(a[colFIndex])-new Date(b[colFIndex]));
+    const sort = document.querySelector('input[name="globalSort"]:checked')?.value || 'date';
+    rows.sort((a, b) => sort === 'amount' ? parseFloat(b[colMIndex] || 0) - parseFloat(a[colMIndex] || 0) : new Date(a[colFIndex]) - new Date(b[colFIndex]));
 
-    // Build table
-    const table=document.createElement('table');
-    const headers = isRightTable 
-      ? ['Payment ID', 'Card last 4', 'Date', 'Amount']
-      : ['PaymentRef', 'Account', 'Date','Amount','Tip','Paid'];
-    table.innerHTML=`<thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>`;
-    const tbody=document.createElement('tbody');
+    const table = document.createElement('table');
+    const headers = isRightTable ? ['Payment ID', 'Card last 4', 'Date', 'Amount'] : ['PaymentRef', 'Account', 'Date', 'Amount', 'Tip', 'Paid'];
+    table.innerHTML = `<thead><tr>${headers.map(h => `<th>${h}</th>`).join('')}</tr></thead>`;
+    const tbody = document.createElement('tbody');
 
-    filteredRows.forEach(r=>{
-      const tr=document.createElement('tr');
-      tr.addEventListener('click',(e)=>toggleRowSelection(tr,e));
-      headers.forEach((h,j)=>{
-        const td=document.createElement('td');
-        td.contentEditable=false;
-        td.style.height='20px';
-        if(h==='PaymentRef' || h==='Payment ID') td.textContent = r[colPaymentIndex];
-        else if(h==='Account' || h==='Card last 4') td.textContent = r[colHIndex];
-        else if(h==='Date') td.textContent = r[colFIndex];
-        else if(h==='Amount') td.textContent = colMIndex!==-1 && r[colMIndex] ? parseFloat(r[colMIndex]).toFixed(2) : '0.00';
-        else if(!isRightTable){
-          const colTipIndex = headerRow.indexOf("Tip");
-          const colPaidIndex = headerRow.indexOf("Paid");
-          if(h==='Tip') td.textContent = colTipIndex!==-1 && r[colTipIndex] ? parseFloat(r[colTipIndex]).toFixed(2) : '0.00';
-          if(h==='Paid') td.textContent = colPaidIndex!==-1 && r[colPaidIndex] ? parseFloat(r[colPaidIndex]).toFixed(2) : '0.00';
-        }
+    rows.forEach(r => {
+      const tr = document.createElement('tr');
+      tr.addEventListener('click', (e) => toggleRowSelection(tr, e));
+      headers.forEach(h => {
+        const td = document.createElement('td');
+        td.style.height = '20px';
+        if (h === 'PaymentRef' || h === 'Payment ID') td.textContent = r[colPaymentIndex];
+        else if (h === 'Account' || h === 'Card last 4') td.textContent = r[colHIndex];
+        else if (h === 'Date') td.textContent = r[colFIndex];
+        else td.textContent = parseFloat(r[headerRow.indexOf(h)] || 0).toFixed(2);
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
     });
 
-    const totalsRow=document.createElement('tr');
+    const totalsRow = document.createElement('tr');
     totalsRow.classList.add('totals-row');
-    updateTotalsRow(totalsRow, tbody, isRightTable);
     tbody.appendChild(totalsRow);
-
     table.appendChild(tbody);
     outputDiv.appendChild(table);
 
-    updatePaymentIDHighlights(); // <-- dynamic highlight
+    // DYNAMIC MATCHING TRIGGER
+    if (isMatchAllActive && isRightTable) {
+        setTimeout(runAlignmentLogic, 10); 
+    }
+
+    updateTotals();
+    updatePaymentIDHighlights();
   }
 
-  // ================= Dynamic Totals ===================
-  function updateTotals(){
-    const tableBody=document.querySelector(`#${outputDivId} table tbody`);
-    if(!tableBody) return;
-    const totalsRow=tableBody.querySelector('.totals-row');
-    if(!totalsRow) return;
-    updateTotalsRow(totalsRow, tableBody, isRightTable);
-  }
-
-  function updateTotalsRow(totalsRow, tbody, isRightTable=false){
-    const rows = Array.from(tbody.querySelectorAll('tr:not(.totals-row)'));
-    if(rows.length===0) return;
-
-    const numCols = rows[0].children.length;
+  function updateTotals() {
+    const tableBody = document.querySelector(`#${outputDivId} table tbody`);
+    if (!tableBody) return;
+    const totalsRow = tableBody.querySelector('.totals-row');
+    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'));
+    const numCols = rows[0]?.children.length || 0;
     const sums = new Array(numCols).fill(0);
 
     rows.forEach(tr => {
-      for(let i=0; i<numCols; i++){
+      for (let i = 0; i < numCols; i++) {
         const val = parseFloat(tr.children[i]?.textContent);
-        if(!isNaN(val)) sums[i] += val;
+        if (!isNaN(val)) sums[i] += val;
       }
     });
 
     totalsRow.innerHTML = '';
-    for(let i=0; i<numCols; i++){
+    for (let i = 0; i < numCols; i++) {
       const td = document.createElement('td');
-      td.contentEditable = false;
-      td.style.height = '20px';
-
-      if(isRightTable && (i === 1 || i === 2)) td.textContent = '';
-      else if(!isRightTable && i === 2) td.textContent = '';
-      else td.textContent = i === 0 ? 'Total' : (sums[i] ? sums[i].toFixed(2) : '');
-
+      td.textContent = i === 0 ? 'Total' : (sums[i] ? sums[i].toFixed(2) : '');
       totalsRow.appendChild(td);
     }
   }
 }
 
-// ================== Initialize Panels ==================
-initCSVPanel('csvFileLeft','methodCheckboxesLeft','outputLeft','addRowBtnLeft','removeRowBtnLeft','undoBtnLeft','sortOptionLeft', false);
-initCSVPanel('csvFileRight','channelCheckboxesRight','outputRight','addRowBtnRight','removeRowBtnRight','undoBtnRight','sortOptionRight', true);
+// ===================== Standalone Alignment Logic =====================
+function runAlignmentLogic() {
+  const leftTbody = document.querySelector('#outputLeft table tbody');
+  const rightTbody = document.querySelector('#outputRight table tbody');
+  if (!leftTbody || !rightTbody) return;
 
-// ================= Scroll Sync =================
-const leftTableContainer = document.getElementById('outputLeft');
-const rightTableContainer = document.getElementById('outputRight');
-leftTableContainer.addEventListener('scroll', ()=>{
-  rightTableContainer.scrollTop = leftTableContainer.scrollTop;
-  rightTableContainer.scrollLeft = leftTableContainer.scrollLeft;
-});
-rightTableContainer.addEventListener('scroll', ()=>{
-  leftTableContainer.scrollTop = rightTableContainer.scrollTop;
-  leftTableContainer.scrollLeft = rightTableContainer.scrollLeft;
-});
+  let i = 0;
+  while (i < Math.max(leftTbody.rows.length - 1, rightTbody.rows.length - 1)) {
+    const leftRow = leftTbody.rows[i];
+    const rightRow = rightTbody.rows[i];
+    if (leftRow?.classList.contains('totals-row') || rightRow?.classList.contains('totals-row')) break;
+
+    const leftID = leftRow?.cells[0]?.textContent.trim();
+    const rightID = rightRow?.cells[0]?.textContent.trim();
+
+    if (leftID === rightID || (!leftID && !rightID)) {
+      i++; continue;
+    }
+
+    let foundInRight = false;
+    for (let r = i + 1; r < rightTbody.rows.length - 1; r++) {
+      if (rightTbody.rows[r].cells[0].textContent.trim() === leftID) { foundInRight = true; break; }
+    }
+
+    let foundInLeft = false;
+    for (let l = i + 1; l < leftTbody.rows.length - 1; l++) {
+      if (leftTbody.rows[l].cells[0].textContent.trim() === rightID) { foundInLeft = true; break; }
+    }
+
+    if (foundInRight) {
+      insertBlankRow(leftTbody, i, 6);
+    } else if (foundInLeft) {
+      insertBlankRow(rightTbody, i, 4);
+    } else {
+      i++;
+    }
+  }
+  updatePaymentIDHighlights();
+}
+
+// ================== Initialize ==================
+initCSVPanel('csvFileLeft', 'methodCheckboxesLeft', 'outputLeft', 'addRowBtnLeft', 'removeRowBtnLeft', 'undoBtnLeft', false);
+initCSVPanel('csvFileRight', 'channelCheckboxesRight', 'outputRight', 'addRowBtnRight', 'removeRowBtnRight', 'undoBtnRight', true);
+
+// Scroll Sync
+const leftBox = document.getElementById('outputLeft');
+const rightBox = document.getElementById('outputRight');
+leftBox.onscroll = () => rightBox.scrollTop = leftBox.scrollTop;
+rightBox.onscroll = () => leftBox.scrollTop = rightBox.scrollTop;
