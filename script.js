@@ -2,6 +2,7 @@
 let updateLeftTable = null;
 let updateRightTable = null;
 let isMatchAllActive = false; 
+let isRedFilterActive = false;
 
 // ===================== Match All Toggle =====================
 document.getElementById('matchAllBtn').addEventListener('click', function() {
@@ -11,9 +12,41 @@ document.getElementById('matchAllBtn').addEventListener('click', function() {
   refreshBoth();
 });
 
+// ===================== Show Red Only Toggle =====================
+document.getElementById('showRedOnlyBtn').addEventListener('click', function() {
+  isRedFilterActive = !isRedFilterActive;
+  this.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
+  this.textContent = isRedFilterActive ? 'Showing Red Only' : 'Show Red Highlights Only';
+  applyRedFilter();
+});
+
 function refreshBoth() {
     if (updateLeftTable) updateLeftTable();
     if (updateRightTable) updateRightTable();
+    // Re-apply filter if it was active after data refresh
+    if (isRedFilterActive) applyRedFilter();
+}
+
+function applyRedFilter() {
+  const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
+  const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
+
+  for (let i = 0; i < leftRows.length; i++) {
+    const lRow = leftRows[i];
+    const rRow = rightRows[i];
+    
+    // Check if either cell in the pair is highlighted red
+    const isRed = (lRow?.cells[0]?.style.backgroundColor === 'rgb(248, 215, 218)') || 
+                  (rRow?.cells[0]?.style.backgroundColor === 'rgb(248, 215, 218)');
+
+    if (isRedFilterActive) {
+      if (lRow) lRow.style.display = isRed ? '' : 'none';
+      if (rRow) rRow.style.display = isRed ? '' : 'none';
+    } else {
+      if (lRow) lRow.style.display = '';
+      if (rRow) rRow.style.display = '';
+    }
+  }
 }
 
 // ===================== HELPER: Insert Blank Row =====================
@@ -73,7 +106,6 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     reader.readAsText(file);
   });
 
-  // Shift Row(s) Down Logic
   document.getElementById(addBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
     if (!tableBody || selectedRows.size === 0) return;
@@ -97,6 +129,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     }
     updateTotals();
     updatePaymentIDHighlights();
+    if (isRedFilterActive) applyRedFilter();
     actionHistory.push({ type: 'add', rows: addedRows });
   });
 
@@ -216,7 +249,6 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         rows = rows.filter(r => r[headerRow.indexOf("Status")].trim().toUpperCase() !== 'FAILED');
     }
 
-    // Default Sorting: Date
     rows.sort((a, b) => new Date(a[colFIndex]) - new Date(b[colFIndex]));
 
     const table = document.createElement('table');
@@ -251,6 +283,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
 
     updateTotals();
     updatePaymentIDHighlights();
+    if (isRedFilterActive) applyRedFilter();
   }
 
   function updateTotals() {
@@ -262,9 +295,12 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     const sums = new Array(numCols).fill(0);
 
     rows.forEach(tr => {
-      for (let i = 0; i < numCols; i++) {
-        const val = parseFloat(tr.children[i]?.textContent);
-        if (!isNaN(val)) sums[i] += val;
+      // Only count rows that are currently visible
+      if (tr.style.display !== 'none') {
+        for (let i = 0; i < numCols; i++) {
+          const val = parseFloat(tr.children[i]?.textContent);
+          if (!isNaN(val)) sums[i] += val;
+        }
       }
     });
 
@@ -292,7 +328,6 @@ function runAlignmentLogic() {
   if (!leftTbody || !rightTbody) return;
 
   let i = 0;
-  // Step 1: Align existing IDs
   while (i < Math.max(leftTbody.rows.length - 1, rightTbody.rows.length - 1)) {
     const leftRow = leftTbody.rows[i];
     const rightRow = rightTbody.rows[i];
@@ -324,7 +359,6 @@ function runAlignmentLogic() {
     }
   }
 
-  // Step 2: Row Padding - Force tables to equal length before Totals row
   let leftDataRows = leftTbody.querySelectorAll('tr:not(.totals-row)').length;
   let rightDataRows = rightTbody.querySelectorAll('tr:not(.totals-row)').length;
 
@@ -338,6 +372,7 @@ function runAlignmentLogic() {
   }
 
   updatePaymentIDHighlights();
+  if (isRedFilterActive) applyRedFilter();
 }
 
 // ================== Initialize ==================
