@@ -1,116 +1,171 @@
-/* =================== General =================== */
-body { 
-  font-family: Arial, sans-serif; 
-  padding: 20px; 
-  background-color: #f4f4f4; 
-  margin:0; 
-}
-.header-row h1, .header-row h2 {
-  display:inline-block;
-  margin-right: 20px;
-  font-size:18px;
+/* =================== Variables & Base =================== */
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --success: #16a34a;
+    --success-hover: #15803d;
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --undo: #64748b;
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --border: #e2e8f0;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
 }
 
-/* =================== Flex Layout =================== */
+body { 
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+    padding: 20px; 
+    background-color: var(--bg-main); 
+    color: var(--text-main);
+    margin: 0; 
+}
+
+/* =================== Global Controls Bar =================== */
+.header-row h1 {
+    font-size: 20px;
+    margin-bottom: 15px;
+}
+
+.global-controls-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-card);
+    padding: 12px 20px;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid var(--border);
+    margin-bottom: 20px;
+}
+
+.sort-group {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.sort-group label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    cursor: pointer;
+}
+
+/* =================== Panels Layout =================== */
 .flex-container { 
-  display: flex; 
-  width: 100vw; 
-  align-items: flex-start; 
-  gap: 10px;
+    display: flex; 
+    width: 100%; 
+    gap: 15px;
 }
 
 .left-panel, .right-panel { 
-  width: 50%; 
-  display:flex; 
-  flex-direction: column; 
-  padding: 0 10px; 
-  box-sizing: border-box; 
+    flex: 1; 
+    background: var(--bg-card);
+    padding: 15px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    min-width: 0; 
 }
 
-/* =================== Controls =================== */
-.controls { margin-bottom: 10px; font-size: 14px; }
+/* =================== Filters =================== */
+.checkboxes-container strong {
+    font-size: 14px;
+    color: var(--text-muted);
+}
 
-/* Fixed-height filter lists */
 .checkboxes { 
-  margin-bottom: 10px; 
-  font-size: 14px; 
-  max-height: calc(4 * 24px + 4px); /* max 4 items visible */
-  min-height: calc(4 * 24px + 4px); /* always height for 4 items */
-  overflow-y: auto; 
-  flex-shrink: 0;
-  border: 1px solid #ccc;
-  padding: 4px;
-  background-color: #fff;
+    margin: 8px 0 15px 0;
+    font-size: 13px; 
+    height: 100px; 
+    overflow-y: auto; 
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 6px;
+    background-color: #fafafa;
+}
+
+.checkboxes label {
+    display: block;
+    padding: 2px 0;
+    cursor: pointer;
 }
 
 /* =================== Buttons =================== */
 .button-row {
-  display: flex;
-  gap: 5px;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  margin-bottom: 5px;
-  background: #f4f4f4;
+    display: flex;
+    gap: 6px;
+    margin-bottom: 12px;
 }
-.button-row button {
-  flex: 0 0 auto;
-  margin-bottom: 0;
-  background-color: #4CAF50;
-  color:white;
-  border:none;
-  padding:6px 12px;
-  font-size:12px;
-  cursor:pointer;
+
+button {
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    color: white;
 }
-.button-row button:hover { background-color: #45a049; }
+
+.primary-btn { background-color: var(--primary); }
+.primary-btn:hover { background-color: var(--primary-hover); }
+
+.btn-shift { background-color: var(--success); }
+.btn-shift:hover { background-color: var(--success-hover); }
+
+.btn-remove { background-color: var(--danger); }
+.btn-remove:hover { background-color: var(--danger-hover); }
+
+.btn-undo { background-color: var(--undo); }
 
 /* =================== Tables =================== */
 .table-container {
-  width: 100%;
-  overflow: auto; /* scrollable */
-  position: relative;
-  height: 420px; /* fixed table height */
+    width: 100%;
+    overflow: auto;
+    height: 450px; 
+    border: 1px solid var(--border);
 }
 
 table { 
-  width: 100%; 
-  border-collapse: collapse; 
-  font-size:12px; 
+    width: 100%; 
+    border-collapse: collapse;
+    font-size: 12px; 
 }
+
+th {
+    background-color: #f1f5f9; 
+    position: sticky; 
+    top: 0; 
+    z-index: 10; 
+    border-bottom: 2px solid var(--border);
+}
+
 th, td { 
-  border:1px solid #ccc; 
-  padding:4px 6px; 
-  text-align:left; 
-  white-space:nowrap; 
-  height:20px; 
+    border: 1px solid var(--border);
+    padding: 6px 10px; 
+    text-align: left; 
+    white-space: nowrap; 
 }
 
-/* Sticky header */
-table th {
-  background-color:#eee; 
-  position: sticky; 
-  top:0; 
-  z-index:10; 
+/* Totals Row */
+tr.totals-row td { 
+    font-weight: bold; 
+    background-color: #f1f5f9; 
+    position: sticky; 
+    bottom: 0; 
+    z-index: 5; 
+    border-top: 2px solid var(--border);
 }
 
-/* Row selection */
-tr.selected { 
-  outline:2px solid #4CAF50; 
-  cursor:pointer; 
+tr.selected td {
+    background-color: #eff6ff !important;
+    outline: 1px solid var(--primary);
 }
 
-/* Sticky totals row */
-tr.totals-row { 
-  font-weight:bold; 
-  background-color:#ddd; 
-  position: sticky; 
-  bottom:0; 
-  z-index:9; 
-}
-
-/* Labels */
-label{ 
-  display:block; 
-  margin-bottom:4px; 
+.info-text {
+    font-size: 12px;
+    color: var(--text-muted);
 }
