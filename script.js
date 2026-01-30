@@ -3,11 +3,6 @@ let updateLeftTable = null;
 let updateRightTable = null;
 let isMatchAllActive = false; 
 
-// Unified Sort Listener
-document.querySelectorAll('input[name="globalSort"]').forEach(radio => {
-  radio.addEventListener('change', refreshBoth);
-});
-
 // ===================== Match All Toggle =====================
 document.getElementById('matchAllBtn').addEventListener('click', function() {
   isMatchAllActive = !isMatchAllActive;
@@ -22,7 +17,6 @@ function refreshBoth() {
 }
 
 // ===================== HELPER: Insert Blank Row =====================
-// This was the missing function causing the ReferenceError
 function insertBlankRow(tbody, index, numCols) {
   const tr = document.createElement('tr');
   for (let c = 0; c < numCols; c++) {
@@ -33,22 +27,31 @@ function insertBlankRow(tbody, index, numCols) {
   tbody.insertBefore(tr, tbody.rows[index]);
 }
 
-// ===================== Global Dynamic Highlight =====================
+// ===================== Global Dynamic Highlight (Bidirectional) =====================
 function updatePaymentIDHighlights() {
   const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
   const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
 
-  rightRows.forEach((tr, index) => {
-    const paymentIDCell = tr.cells[0]; 
-    const leftPaymentCell = leftRows[index]?.cells[0]; 
-    if (paymentIDCell) {
-      if (!leftPaymentCell || paymentIDCell.textContent.trim() !== leftPaymentCell.textContent.trim()) {
-        paymentIDCell.style.backgroundColor = '#f8d7da'; 
-      } else {
-        paymentIDCell.style.backgroundColor = ''; 
-      }
+  const maxLength = Math.max(leftRows.length, rightRows.length);
+
+  for (let index = 0; index < maxLength; index++) {
+    const leftRow = leftRows[index];
+    const rightRow = rightRows[index];
+    
+    const leftPaymentCell = leftRow?.cells[0];
+    const rightPaymentCell = rightRow?.cells[0];
+
+    const leftVal = leftPaymentCell?.textContent.trim() || "";
+    const rightVal = rightPaymentCell?.textContent.trim() || "";
+
+    if (leftVal !== rightVal || leftVal === "" || rightVal === "") {
+      if (leftPaymentCell) leftPaymentCell.style.backgroundColor = '#f8d7da'; 
+      if (rightPaymentCell) rightPaymentCell.style.backgroundColor = '#f8d7da'; 
+    } else {
+      if (leftPaymentCell) leftPaymentCell.style.backgroundColor = '';
+      if (rightPaymentCell) rightPaymentCell.style.backgroundColor = '';
     }
-  });
+  }
 }
 
 // ================= CSV Panel Initialization =================
@@ -70,7 +73,7 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     reader.readAsText(file);
   });
 
-  // Shift Row Logic
+  // Shift Row(s) Down Logic
   document.getElementById(addBtnId).addEventListener('click', function() {
     const tableBody = document.querySelector(`#${outputDivId} table tbody`);
     if (!tableBody || selectedRows.size === 0) return;
@@ -213,8 +216,8 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
         rows = rows.filter(r => r[headerRow.indexOf("Status")].trim().toUpperCase() !== 'FAILED');
     }
 
-    const sort = document.querySelector('input[name="globalSort"]:checked')?.value || 'date';
-    rows.sort((a, b) => sort === 'amount' ? parseFloat(b[colMIndex] || 0) - parseFloat(a[colMIndex] || 0) : new Date(a[colFIndex]) - new Date(b[colFIndex]));
+    // Default Sorting: Date
+    rows.sort((a, b) => new Date(a[colFIndex]) - new Date(b[colFIndex]));
 
     const table = document.createElement('table');
     const headers = isRightTable ? ['Payment ID', 'Card last 4', 'Date', 'Amount'] : ['PaymentRef', 'Account', 'Date', 'Amount', 'Tip', 'Paid'];
@@ -242,7 +245,6 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     table.appendChild(tbody);
     outputDiv.appendChild(table);
 
-    // DYNAMIC MATCHING TRIGGER
     if (isMatchAllActive && isRightTable) {
         setTimeout(runAlignmentLogic, 10); 
     }
@@ -269,7 +271,15 @@ function initCSVPanel(fileInputId, filterDivId, outputDivId, addBtnId, removeBtn
     totalsRow.innerHTML = '';
     for (let i = 0; i < numCols; i++) {
       const td = document.createElement('td');
-      td.textContent = i === 0 ? 'Total' : (sums[i] ? sums[i].toFixed(2) : '');
+      if (i === 0) {
+        td.textContent = 'Total';
+      } else if (isRightTable) {
+        if (i === 1 || i === 2) td.textContent = '';
+        else td.textContent = sums[i] ? sums[i].toFixed(2) : '';
+      } else {
+        if (i === 2) td.textContent = '';
+        else td.textContent = sums[i] ? sums[i].toFixed(2) : '';
+      }
       totalsRow.appendChild(td);
     }
   }
@@ -282,6 +292,7 @@ function runAlignmentLogic() {
   if (!leftTbody || !rightTbody) return;
 
   let i = 0;
+  // Step 1: Align existing IDs
   while (i < Math.max(leftTbody.rows.length - 1, rightTbody.rows.length - 1)) {
     const leftRow = leftTbody.rows[i];
     const rightRow = rightTbody.rows[i];
@@ -312,6 +323,20 @@ function runAlignmentLogic() {
       i++;
     }
   }
+
+  // Step 2: Row Padding - Force tables to equal length before Totals row
+  let leftDataRows = leftTbody.querySelectorAll('tr:not(.totals-row)').length;
+  let rightDataRows = rightTbody.querySelectorAll('tr:not(.totals-row)').length;
+
+  while (leftDataRows < rightDataRows) {
+    insertBlankRow(leftTbody, leftDataRows, 6);
+    leftDataRows++;
+  }
+  while (rightDataRows < leftDataRows) {
+    insertBlankRow(rightTbody, rightDataRows, 4);
+    rightDataRows++;
+  }
+
   updatePaymentIDHighlights();
 }
 
