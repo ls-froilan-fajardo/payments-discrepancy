@@ -59,7 +59,7 @@ function setButtonStates() {
     }
     if (redBtn) {
         redBtn.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
-        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show Red';
+        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show All';
     }
     if (sortBtn) {
         sortBtn.style.backgroundColor = isSortByAmountActive ? '#16a34a' : '';
