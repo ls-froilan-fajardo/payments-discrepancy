@@ -71,6 +71,8 @@ button:hover { opacity: 0.9; }
 .btn-shift { background-color: var(--success); }
 .btn-remove { background-color: var(--danger); }
 .btn-undo { background-color: var(--undo); }
+/* RED UNDO ALL BUTTON STYLE */
+.btn-undo-all { background-color: var(--danger); }
 
 .date-select {
     padding: 3px 6px; border-radius: 3px; border: 1px solid var(--border);
@@ -156,7 +158,7 @@ tr.totals-row td {
 td.selected-cell { 
     background-color: var(--highlight-selected) !important; 
     box-shadow: inset 0 0 0 2px var(--primary); 
-    font-weight: 700; 
+    font-weight: 700; /* Original text color preserved */
 }
 tr.active-row {
     background-color: var(--highlight-active-row);
