@@ -21,13 +21,14 @@ function initTheme() {
     const themeBtn = document.getElementById('themeToggleBtn');
     const storedTheme = localStorage.getItem('theme');
     
-    // Default to Dark if null, or explicit Dark
-    if (storedTheme === 'light') {
-        document.body.removeAttribute('data-theme');
-        if(themeBtn) themeBtn.textContent = '🌙 Dark';
-    } else {
+    // === CHANGED: Default is LIGHT (if storedTheme is null or 'light')
+    if (storedTheme === 'dark') {
         document.body.setAttribute('data-theme', 'dark');
         if(themeBtn) themeBtn.textContent = '☀ Light';
+    } else {
+        // Fallback for null or 'light'
+        document.body.removeAttribute('data-theme');
+        if(themeBtn) themeBtn.textContent = '🌙 Dark';
     }
 
     if(themeBtn) {
@@ -42,7 +43,6 @@ function initTheme() {
                 themeBtn.textContent = '☀ Light';
                 localStorage.setItem('theme', 'dark');
             }
-            // Trigger redraw to fix highlights in new color scheme
             refreshBoth();
         });
     }
@@ -59,7 +59,7 @@ function setButtonStates() {
     }
     if (redBtn) {
         redBtn.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
-        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show All';
+        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show Red';
     }
     if (sortBtn) {
         sortBtn.style.backgroundColor = isSortByAmountActive ? '#16a34a' : '';
