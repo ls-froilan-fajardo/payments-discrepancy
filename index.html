@@ -6,7 +6,7 @@
     <title>Payments Reconciliation Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body data-theme="dark">
 
 <div class="header-row">
     <div class="main-title-group">
@@ -14,7 +14,11 @@
     </div>
     
     <div class="global-controls-container">
-        <label style="font-size:11px; font-weight:600; color:#475569;">Filter:</label>
+        <button id="themeToggleBtn" class="primary-btn" style="background-color: var(--undo);">☀ Light</button>
+        
+        <div class="separator" style="width:1px; height:20px; background:var(--border); margin:0 5px;"></div>
+
+        <label style="font-size:11px; font-weight:600; color:var(--text-muted);">Filter:</label>
         <select id="globalDateFilter" class="date-select">
             <option value="">All Dates</option>
         </select>
@@ -29,7 +33,7 @@
 <div class="controls-section">
     <div class="control-panel left-control-panel">
         <div class="panel-header">
-            <h3>Back Office Payments Report</h3>
+            <h3>Back Office</h3>
             <input type="file" id="csvFileLeft" accept=".csv" />
         </div>
         <div style="margin-bottom: 5px;">
@@ -49,7 +53,7 @@
 
     <div class="control-panel right-control-panel">
         <div class="panel-header">
-            <h3>Financial Services Payments Report</h3>
+            <h3>Financial Services</h3>
             <input type="file" id="csvFileRight" accept=".csv" />
         </div>
         <div style="margin-bottom: 5px; height: 26px;"></div> <div class="checkbox-area">
