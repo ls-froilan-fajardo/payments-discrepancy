@@ -9,8 +9,9 @@
 <body>
 
 <div class="header-row">
-    <div class="main-title-group">
+    <div class="main-title-group" style="display: flex; align-items: center;">
         <h1>Payments Dashboard</h1>
+        <button id="helpBtn" class="help-btn" title="How to use">?</button>
     </div>
     
     <div class="global-controls-container">
@@ -98,6 +99,25 @@
         <div class="stat-row">
             <span class="stat-label">Count:</span>
             <span id="floatCount" class="stat-value">0</span>
+        </div>
+    </div>
+</div>
+
+<div id="helpModal" class="modal-overlay hidden">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>How to Use</h2>
+            <button id="closeHelpBtn" class="close-modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p><strong>Lorem Ipsum Instructions:</strong></p>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+            <ul>
+                <li>Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore.</li>
+                <li>Excepteur sint occaecat cupidatat non proident.</li>
+                <li>Sunt in culpa qui officia deserunt mollit anim id est laborum.</li>
+            </ul>
+            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum. Cras venenatis euismod malesuada.</p>
         </div>
     </div>
 </div>
