@@ -60,16 +60,34 @@
 </div>
 
 <div class="table-action-toolbar">
-    <span class="label-text">Selected Row Actions:</span>
+    <span class="label-text">Selected Actions (Space/Del/Ctrl+Z):</span>
     <button id="btnShift" class="btn-shift">Shift Down</button>
     <button id="btnRemove" class="btn-remove">Remove Row</button>
-    <div style="flex-grow:1"></div> <button id="btnUndo" class="btn-undo">Undo Last Action</button>
+    <div style="flex-grow:1"></div> 
+    <button id="btnUndo" class="btn-undo">Undo</button>
 </div>
 
 <div class="unified-scroll-view">
     <div class="split-table-container">
         <div id="outputLeft" class="table-side left-side"></div>
         <div id="outputRight" class="table-side right-side"></div>
+    </div>
+</div>
+
+<div id="floatingWidget" class="floating-widget">
+    <div id="floatingHeader" class="widget-header">
+        <span>Selection Total</span>
+        <span style="font-size: 10px; opacity: 0.7;">::</span>
+    </div>
+    <div class="widget-content">
+        <div class="stat-row">
+            <span class="stat-label">Sum:</span>
+            <span id="floatSum" class="stat-value">0.00</span>
+        </div>
+        <div class="stat-row">
+            <span class="stat-label">Count:</span>
+            <span id="floatCount" class="stat-value">0</span>
+        </div>
     </div>
 </div>
 
