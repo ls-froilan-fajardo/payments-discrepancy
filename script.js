@@ -21,12 +21,11 @@ function initTheme() {
     const themeBtn = document.getElementById('themeToggleBtn');
     const storedTheme = localStorage.getItem('theme');
     
-    // === CHANGED: Default is LIGHT (if storedTheme is null or 'light')
+    // Default is LIGHT (if storedTheme is null or 'light')
     if (storedTheme === 'dark') {
         document.body.setAttribute('data-theme', 'dark');
         if(themeBtn) themeBtn.textContent = '☀ Light';
     } else {
-        // Fallback for null or 'light'
         document.body.removeAttribute('data-theme');
         if(themeBtn) themeBtn.textContent = '🌙 Dark';
     }
@@ -59,7 +58,7 @@ function setButtonStates() {
     }
     if (redBtn) {
         redBtn.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
-        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show All';
+        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show Red';
     }
     if (sortBtn) {
         sortBtn.style.backgroundColor = isSortByAmountActive ? '#16a34a' : '';
@@ -89,6 +88,16 @@ function normalizeDate(raw, formatType) {
         let day, month, year;
         if (formatType.startsWith('DD/MM')) { [day, month, year] = parts; } 
         else if (formatType.startsWith('MM/DD')) { [month, day, year] = parts; } 
+        else { [day, month, year] = parts; }
+        if (year.length === 2) year = '20' + year;
+        day = day.padStart(2, '0'); month = month.padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+    if (datePart.includes('.')) {
+        const parts = datePart.split('.');
+        if (parts.length !== 3) return datePart;
+        let day, month, year;
+        if (formatType.startsWith('MM.DD')) { [month, day, year] = parts; } 
         else { [day, month, year] = parts; }
         if (year.length === 2) year = '20' + year;
         day = day.padStart(2, '0'); month = month.padStart(2, '0');
@@ -211,20 +220,24 @@ setupBtn('sortAmountBtn', function() {
     refreshBoth();
 });
 
+// === UPDATED RESET BUTTON ===
 setupBtn('resetViewBtn', function() {
-    if (confirm("Reset everything?")) {
-        const clearVal = (id) => { const el = document.getElementById(id); if(el) el.value = ""; }
-        const clearHTML = (id) => { const el = document.getElementById(id); if(el) el.innerHTML = ""; }
-        clearVal('csvFileLeft'); clearVal('csvFileRight');
-        clearHTML('outputLeft'); clearHTML('outputRight');
-        clearHTML('methodCheckboxesLeft'); clearHTML('channelCheckboxesRight');
+    if (confirm("Clear all data and reset?")) {
+        // 1. Wipe Internal Data Models & File Inputs
+        if (leftTableState) leftTableState.resetData();
+        if (rightTableState) rightTableState.resetData();
+        
+        // 2. Clear Global History
+        globalActionHistory = [];
+        
+        // 3. Reset Global Filters
         const dateFilter = document.getElementById('globalDateFilter');
         if(dateFilter) dateFilter.innerHTML = '<option value="">All Dates</option>';
-        isMatchAllActive = true; isRedFilterActive = true; isSortByAmountActive = false;
         
-        if(leftTableState) leftTableState.selectedRows.clear();
-        if(rightTableState) rightTableState.selectedRows.clear();
-        globalActionHistory = [];
+        // 4. Reset Toggles
+        isMatchAllActive = true; 
+        isRedFilterActive = true; 
+        isSortByAmountActive = false;
         
         updateFloatingStats();
         setButtonStates();
@@ -346,10 +359,7 @@ function updateTotalsDOM(outputId, isRight) {
 function applyRedFilter() {
     const leftRows = Array.from(document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)'));
     const rightRows = Array.from(document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)'));
-    
-    // Check against variable string because we are using vars now
     const redBgVar = 'var(--highlight-red-bg)';
-
     const filter = (rows) => {
         rows.forEach(row => {
             const isRed = row.cells[0]?.style.backgroundColor.includes('var(--highlight-red-bg)');
@@ -386,6 +396,22 @@ class CSVPanel {
                 reader.readAsText(file);
             });
         }
+    }
+
+    // === NEW: RESET METHOD ===
+    resetData() {
+        this.csvData = [];
+        this.headerRow = [];
+        this.selectedRows.clear();
+        this.actionHistory = [];
+        
+        // Clear DOM
+        document.getElementById(this.outputDivId).innerHTML = '';
+        document.getElementById(this.filterDivId).innerHTML = '';
+        
+        // Clear File Input Value so the same file can be selected again
+        const fileInput = document.getElementById(this.fileInputId);
+        if(fileInput) fileInput.value = '';
     }
 
     parseCSV(text) {
@@ -510,7 +536,6 @@ class CSVPanel {
         const isMulti = e.ctrlKey || e.metaKey;
         const cell = e.target.closest('td');
 
-        // If NOT holding Ctrl, clear selections from BOTH tables
         if (!isMulti) {
             if (leftTableState) leftTableState.clearSelectionInternal();
             if (rightTableState) rightTableState.clearSelectionInternal();
@@ -689,7 +714,6 @@ function updatePaymentIDHighlights() {
     const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
     const maxLength = Math.max(leftRows.length, rightRows.length);
 
-    // CSS Vars
     const redBg = 'var(--highlight-red-bg)';
     const redText = 'var(--highlight-red-text)';
 
@@ -698,7 +722,6 @@ function updatePaymentIDHighlights() {
         const lCellID = lRow?.cells[0]; const rCellID = rRow?.cells[0];
         const lID = lCellID?.textContent.trim() || ""; const rID = rCellID?.textContent.trim() || "";
 
-        // Only Keep White if BOTH Exist AND Match
         if (lID !== "" && rID !== "" && lID === rID) {
             if (lCellID) lCellID.style.backgroundColor = '';
             if (rCellID) rCellID.style.backgroundColor = '';
@@ -711,14 +734,14 @@ function updatePaymentIDHighlights() {
             const lCell = lRow?.cells[colIdx]; const rCell = rRow?.cells[colIdx];
             if (!lCell || !rCell) return;
             const lText = lCell.textContent.trim(); const rText = rCell.textContent.trim();
-            
-            // Reset styles
-            lCell.style.color = ''; lCell.style.fontWeight = '';
-            rCell.style.color = ''; rCell.style.fontWeight = '';
-
-            if (lText === '' && rText === '') return;
-
+            if (lText === '' && rText === '') {
+                lCell.style.color = ''; lCell.style.fontWeight = '';
+                rCell.style.color = ''; rCell.style.fontWeight = '';
+                return;
+            }
             const lVal = parseMoney(lText); const rVal = parseMoney(rText);
+            if (lCell) { lCell.style.color = ''; lCell.style.fontWeight = ''; }
+            if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
 
             if (Math.abs(lVal - rVal) > 0.009) {
                 if (lVal < rVal && lCell) { lCell.style.color = redText; lCell.style.fontWeight = 'bold'; } 
