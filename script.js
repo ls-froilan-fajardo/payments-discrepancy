@@ -91,20 +91,22 @@ const header = document.getElementById('floatingHeader');
 let isDragging = false;
 let startX, startY, initialLeft, initialTop;
 
-header.addEventListener('mousedown', (e) => {
-    isDragging = true; startX = e.clientX; startY = e.clientY;
-    const rect = widget.getBoundingClientRect();
-    initialLeft = rect.left; initialTop = rect.top;
-    widget.style.bottom = 'auto'; widget.style.right = 'auto';
-    widget.style.left = `${initialLeft}px`; widget.style.top = `${initialTop}px`;
-    widget.style.opacity = '0.9';
-});
-document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - startX; const dy = e.clientY - startY;
-    widget.style.left = `${initialLeft + dx}px`; widget.style.top = `${initialTop + dy}px`;
-});
-document.addEventListener('mouseup', () => { isDragging = false; widget.style.opacity = '1'; });
+if (header) {
+    header.addEventListener('mousedown', (e) => {
+        isDragging = true; startX = e.clientX; startY = e.clientY;
+        const rect = widget.getBoundingClientRect();
+        initialLeft = rect.left; initialTop = rect.top;
+        widget.style.bottom = 'auto'; widget.style.right = 'auto';
+        widget.style.left = `${initialLeft}px`; widget.style.top = `${initialTop}px`;
+        widget.style.opacity = '0.9';
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startX; const dy = e.clientY - startY;
+        widget.style.left = `${initialLeft + dx}px`; widget.style.top = `${initialTop + dy}px`;
+    });
+    document.addEventListener('mouseup', () => { isDragging = false; widget.style.opacity = '1'; });
+}
 
 function updateFloatingStats() {
     const selectedCells = document.querySelectorAll('td.selected-cell');
@@ -114,8 +116,10 @@ function updateFloatingStats() {
         if (!isNaN(val)) sum += val;
         count++;
     });
-    document.getElementById('floatSum').textContent = sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    document.getElementById('floatCount').textContent = count;
+    const sumEl = document.getElementById('floatSum');
+    const countEl = document.getElementById('floatCount');
+    if (sumEl) sumEl.textContent = sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    if (countEl) countEl.textContent = count;
 }
 
 // ===================== Global Logic =====================
@@ -176,26 +180,26 @@ setupBtn('sortAmountBtn', function() {
 
 setupBtn('resetViewBtn', function() {
     if (confirm("Reset everything?")) {
-        document.getElementById('csvFileLeft').value = "";
-        document.getElementById('csvFileRight').value = "";
-        document.getElementById('outputLeft').innerHTML = "";
-        document.getElementById('outputRight').innerHTML = "";
-        document.getElementById('methodCheckboxesLeft').innerHTML = "";
-        document.getElementById('channelCheckboxesRight').innerHTML = "";
-        document.getElementById('globalDateFilter').innerHTML = '<option value="">All Dates</option>';
-        isMatchAllActive = true;
-        isRedFilterActive = true;
-        isSortByAmountActive = false;
-        leftTableState.selectedRows.clear();
-        rightTableState.selectedRows.clear();
+        const clearVal = (id) => { const el = document.getElementById(id); if(el) el.value = ""; }
+        const clearHTML = (id) => { const el = document.getElementById(id); if(el) el.innerHTML = ""; }
+        clearVal('csvFileLeft'); clearVal('csvFileRight');
+        clearHTML('outputLeft'); clearHTML('outputRight');
+        clearHTML('methodCheckboxesLeft'); clearHTML('channelCheckboxesRight');
+        const dateFilter = document.getElementById('globalDateFilter');
+        if(dateFilter) dateFilter.innerHTML = '<option value="">All Dates</option>';
+        isMatchAllActive = true; isRedFilterActive = true; isSortByAmountActive = false;
+        if(leftTableState) leftTableState.selectedRows.clear();
+        if(rightTableState) rightTableState.selectedRows.clear();
         lastActiveTable = null;
         updateFloatingStats();
         setButtonStates();
     }
 });
 
-document.getElementById('globalDateFilter').addEventListener('change', refreshBoth);
-document.getElementById('leftDateFormat').addEventListener('change', () => { updateGlobalDateFilter(); refreshBoth(); });
+const dateEl = document.getElementById('globalDateFilter');
+if(dateEl) dateEl.addEventListener('change', refreshBoth);
+const leftFormatEl = document.getElementById('leftDateFormat');
+if(leftFormatEl) leftFormatEl.addEventListener('change', () => { updateGlobalDateFilter(); refreshBoth(); });
 
 // Unified Buttons
 setupBtn('btnShift', () => performUnifiedAction('add'));
@@ -227,10 +231,6 @@ function performUnifiedAction(actionType) {
     else if (actionType === 'undo') targetTable.handleUndo();
 
     updatePaymentIDHighlights();
-    
-    // Skip auto-align on manual edits
-    if (isMatchAllActive && !isSortByAmountActive && actionType !== 'undo') { }
-    
     if (isRedFilterActive) applyRedFilter();
     else {
         updateTotalsDOM('outputLeft', false);
@@ -359,7 +359,11 @@ class CSVPanel {
         }).filter(v => v !== ''))].sort();
         items.forEach(item => {
             const lbl = document.createElement('label');
-            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = item;
+            const cb = document.createElement('input'); 
+            cb.type = 'checkbox'; 
+            cb.value = item;
+            // === CHANGED: Default is false (unchecked) ===
+            cb.checked = false; 
             cb.addEventListener('change', refreshBoth);
             lbl.appendChild(cb);
             lbl.appendChild(document.createTextNode(' ' + item));
@@ -379,16 +383,12 @@ class CSVPanel {
         for (let i = 0; i < this.selectedRows.size; i++) {
             const tr = document.createElement('tr');
             for (let c = 0; c < numCols; c++) { const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td); }
-            
-            // Re-attach click listener
             tr.addEventListener('click', (e) => this.toggleRowSelection(tr, e));
-            
             if (tableBody.rows[firstIdx]) tableBody.insertBefore(tr, tableBody.rows[firstIdx]);
             else { const totals = tableBody.querySelector('.totals-row'); if (totals) tableBody.insertBefore(tr, totals); else tableBody.appendChild(tr); }
             addedRows.push(tr);
         }
         this.actionHistory.push({ type: 'add', rows: addedRows });
-        // selection is persistent
     }
 
     handleDeleteRow() {
@@ -460,13 +460,10 @@ class CSVPanel {
     clearSelection() {
         const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
         if (!tableBody) return;
-        
         const rows = tableBody.querySelectorAll('tr.active-row');
         rows.forEach(r => r.classList.remove('active-row'));
-        
         const cells = tableBody.querySelectorAll('td.selected-cell');
         cells.forEach(c => c.classList.remove('selected-cell'));
-
         this.selectedRows.clear();
         updateFloatingStats();
     }
@@ -480,7 +477,11 @@ class CSVPanel {
         let checked = Array.from(document.querySelectorAll(`#${this.filterDivId} input:checked`)).map(cb => cb.value);
         let rows = [...this.csvData];
 
-        if (checked.length > 0) {
+        const allCheckboxes = document.querySelectorAll(`#${this.filterDivId} input`);
+        if (allCheckboxes.length > 0 && checked.length === 0) {
+            // === MODIFICATION: Show nothing if no filters checked ===
+            rows = [];
+        } else if (checked.length > 0) {
             const colIdx = this.isRightTable ? this.headerRow.indexOf("Channel") : this.headerRow.indexOf("Method");
             if (colIdx !== -1) {
                 rows = rows.filter(r => {
@@ -490,6 +491,7 @@ class CSVPanel {
                 });
             }
         }
+
         if (this.isRightTable) {
             const sIdx = this.headerRow.indexOf("Status");
             if (sIdx !== -1) rows = rows.filter(r => (r[sIdx] || '').toUpperCase() !== 'FAILED');
@@ -541,7 +543,7 @@ class CSVPanel {
                 const td = document.createElement('td');
                 let lookup = h;
                 if (this.isRightTable) {
-                    if (h === 'Amount') { // Net Calc
+                    if (h === 'Amount') { 
                         const amtIdx = this.headerRow.indexOf('Amount');
                         const tipIdx = this.headerRow.indexOf('Gratuity amount');
                         const amtVal = amtIdx !== -1 ? parseMoney(r[amtIdx]) : 0;
