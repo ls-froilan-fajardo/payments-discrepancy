@@ -12,8 +12,41 @@ const MONTH_NAMES = [
 ];
 
 window.addEventListener('DOMContentLoaded', () => {
+    initTheme();
     setButtonStates();
 });
+
+// ===================== Theme Logic =====================
+function initTheme() {
+    const themeBtn = document.getElementById('themeToggleBtn');
+    const storedTheme = localStorage.getItem('theme');
+    
+    // Default to Dark if null, or explicit Dark
+    if (storedTheme === 'light') {
+        document.body.removeAttribute('data-theme');
+        if(themeBtn) themeBtn.textContent = '🌙 Dark';
+    } else {
+        document.body.setAttribute('data-theme', 'dark');
+        if(themeBtn) themeBtn.textContent = '☀ Light';
+    }
+
+    if(themeBtn) {
+        themeBtn.addEventListener('click', () => {
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            if (isDark) {
+                document.body.removeAttribute('data-theme');
+                themeBtn.textContent = '🌙 Dark';
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.setAttribute('data-theme', 'dark');
+                themeBtn.textContent = '☀ Light';
+                localStorage.setItem('theme', 'dark');
+            }
+            // Trigger redraw to fix highlights in new color scheme
+            refreshBoth();
+        });
+    }
+}
 
 function setButtonStates() {
     const matchBtn = document.getElementById('matchAllBtn');
@@ -26,7 +59,7 @@ function setButtonStates() {
     }
     if (redBtn) {
         redBtn.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
-        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show Red';
+        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show All';
     }
     if (sortBtn) {
         sortBtn.style.backgroundColor = isSortByAmountActive ? '#16a34a' : '';
@@ -218,11 +251,9 @@ document.addEventListener('keydown', (e) => {
 
 // ===================== Core Functions =====================
 function performUnifiedAction(actionType) {
-    // 1. Identify which tables have selections
     const isLeftActive = leftTableState && leftTableState.selectedRows.size > 0;
     const isRightActive = rightTableState && rightTableState.selectedRows.size > 0;
 
-    // Handle Undo Globally
     if (actionType === 'undo') {
         if (globalActionHistory.length === 0) return;
         const lastAction = globalActionHistory.pop();
@@ -234,14 +265,12 @@ function performUnifiedAction(actionType) {
 
     if (!isLeftActive && !isRightActive) return;
 
-    // Record Action
     globalActionHistory.push({
         type: actionType,
         affectedLeft: isLeftActive,
         affectedRight: isRightActive
     });
 
-    // Execute
     if (isLeftActive) {
         if (actionType === 'add') leftTableState.handleAddRow();
         else if (actionType === 'delete') leftTableState.handleDeleteRow();
@@ -317,10 +346,13 @@ function updateTotalsDOM(outputId, isRight) {
 function applyRedFilter() {
     const leftRows = Array.from(document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)'));
     const rightRows = Array.from(document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)'));
-    const redColor = 'rgb(248, 215, 218)';
+    
+    // Check against variable string because we are using vars now
+    const redBgVar = 'var(--highlight-red-bg)';
+
     const filter = (rows) => {
         rows.forEach(row => {
-            const isRed = row.cells[0]?.style.backgroundColor === redColor;
+            const isRed = row.cells[0]?.style.backgroundColor.includes('var(--highlight-red-bg)');
             row.style.display = (isRedFilterActive && !isRed) ? 'none' : '';
         });
     };
@@ -407,7 +439,6 @@ class CSVPanel {
         if (this.selectedRows.size === 0) return;
         
         const selectedTrs = Array.from(this.selectedRows);
-        // Find min source index
         let minIndex = Infinity;
         let targetColIdx = 0; 
 
@@ -415,7 +446,6 @@ class CSVPanel {
             const idx = parseInt(tr.dataset.sourceIndex);
             if (!isNaN(idx) && idx < minIndex) {
                 minIndex = idx;
-                // Capture the selected cell index of the uppermost row
                 const selCell = tr.querySelector('.selected-cell');
                 if (selCell) targetColIdx = selCell.cellIndex;
             }
@@ -431,7 +461,6 @@ class CSVPanel {
         this.actionHistory.push({ type: 'add', index: minIndex });
         
         this.updateOutput();
-        // Shift selection down, keeping the specific cell selected
         this.reselectRowBySourceIndex(minIndex + 1, targetColIdx);
     }
 
@@ -471,7 +500,6 @@ class CSVPanel {
         if (!tableBody) return;
         const target = Array.from(tableBody.querySelectorAll('tr')).find(tr => parseInt(tr.dataset.sourceIndex) === idx);
         if (target) {
-            // Force select, targeting specific cell
             const targetCell = target.cells[colIdx] || target.cells[0];
             this.toggleRowSelection(target, { ctrlKey: true, target: targetCell });
         }
@@ -510,7 +538,6 @@ class CSVPanel {
         updateFloatingStats();
     }
 
-    // Internal clear that doesn't trigger UI updates immediately (helper)
     clearSelectionInternal() {
         const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
         if (!tableBody) return;
@@ -662,35 +689,40 @@ function updatePaymentIDHighlights() {
     const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
     const maxLength = Math.max(leftRows.length, rightRows.length);
 
+    // CSS Vars
+    const redBg = 'var(--highlight-red-bg)';
+    const redText = 'var(--highlight-red-text)';
+
     for (let index = 0; index < maxLength; index++) {
         const lRow = leftRows[index]; const rRow = rightRows[index];
         const lCellID = lRow?.cells[0]; const rCellID = rRow?.cells[0];
         const lID = lCellID?.textContent.trim() || ""; const rID = rCellID?.textContent.trim() || "";
 
+        // Only Keep White if BOTH Exist AND Match
         if (lID !== "" && rID !== "" && lID === rID) {
             if (lCellID) lCellID.style.backgroundColor = '';
             if (rCellID) rCellID.style.backgroundColor = '';
         } else {
-            if (lCellID) lCellID.style.backgroundColor = '#f8d7da'; 
-            if (rCellID) rCellID.style.backgroundColor = '#f8d7da'; 
+            if (lCellID) lCellID.style.backgroundColor = redBg; 
+            if (rCellID) rCellID.style.backgroundColor = redBg; 
         }
 
         [3, 4, 5].forEach(colIdx => {
             const lCell = lRow?.cells[colIdx]; const rCell = rRow?.cells[colIdx];
             if (!lCell || !rCell) return;
             const lText = lCell.textContent.trim(); const rText = rCell.textContent.trim();
-            if (lText === '' && rText === '') {
-                lCell.style.color = ''; lCell.style.fontWeight = '';
-                rCell.style.color = ''; rCell.style.fontWeight = '';
-                return;
-            }
+            
+            // Reset styles
+            lCell.style.color = ''; lCell.style.fontWeight = '';
+            rCell.style.color = ''; rCell.style.fontWeight = '';
+
+            if (lText === '' && rText === '') return;
+
             const lVal = parseMoney(lText); const rVal = parseMoney(rText);
-            if (lCell) { lCell.style.color = ''; lCell.style.fontWeight = ''; }
-            if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
 
             if (Math.abs(lVal - rVal) > 0.009) {
-                if (lVal < rVal && lCell) { lCell.style.color = '#dc2626'; lCell.style.fontWeight = 'bold'; } 
-                else if (rVal < lVal && rCell) { rCell.style.color = '#dc2626'; rCell.style.fontWeight = 'bold'; }
+                if (lVal < rVal && lCell) { lCell.style.color = redText; lCell.style.fontWeight = 'bold'; } 
+                else if (rVal < lVal && rCell) { rCell.style.color = redText; rCell.style.fontWeight = 'bold'; }
             }
         });
     }
