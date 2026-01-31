@@ -21,7 +21,7 @@ function initTheme() {
     const themeBtn = document.getElementById('themeToggleBtn');
     const storedTheme = localStorage.getItem('theme');
     
-    // Default is LIGHT (if storedTheme is null or 'light')
+    // Default is LIGHT
     if (storedTheme === 'dark') {
         document.body.setAttribute('data-theme', 'dark');
         if(themeBtn) themeBtn.textContent = '☀ Light';
@@ -220,25 +220,16 @@ setupBtn('sortAmountBtn', function() {
     refreshBoth();
 });
 
-// === UPDATED RESET BUTTON ===
 setupBtn('resetViewBtn', function() {
     if (confirm("Clear all data and reset?")) {
-        // 1. Wipe Internal Data Models & File Inputs
         if (leftTableState) leftTableState.resetData();
         if (rightTableState) rightTableState.resetData();
-        
-        // 2. Clear Global History
         globalActionHistory = [];
-        
-        // 3. Reset Global Filters
         const dateFilter = document.getElementById('globalDateFilter');
         if(dateFilter) dateFilter.innerHTML = '<option value="">All Dates</option>';
-        
-        // 4. Reset Toggles
         isMatchAllActive = true; 
         isRedFilterActive = true; 
         isSortByAmountActive = false;
-        
         updateFloatingStats();
         setButtonStates();
     }
@@ -253,6 +244,7 @@ if(leftFormatEl) leftFormatEl.addEventListener('change', () => { updateGlobalDat
 setupBtn('btnShift', () => performUnifiedAction('add'));
 setupBtn('btnRemove', () => performUnifiedAction('delete'));
 setupBtn('btnUndo', () => performUnifiedAction('undo'));
+setupBtn('btnUndoAll', () => performUnifiedAction('undoAll'));
 
 // Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
@@ -267,11 +259,27 @@ function performUnifiedAction(actionType) {
     const isLeftActive = leftTableState && leftTableState.selectedRows.size > 0;
     const isRightActive = rightTableState && rightTableState.selectedRows.size > 0;
 
+    // === UNDO ALL LOGIC ===
+    if (actionType === 'undoAll') {
+        // Loop backwards through all history
+        while (globalActionHistory.length > 0) {
+            const lastAction = globalActionHistory.pop();
+            // Pass false to skip UI update for performance
+            if (lastAction.affectedLeft && leftTableState) leftTableState.handleUndo(false);
+            if (lastAction.affectedRight && rightTableState) rightTableState.handleUndo(false);
+        }
+        // Update once at end
+        if (leftTableState) leftTableState.updateOutput();
+        if (rightTableState) rightTableState.updateOutput();
+        updatePostAction();
+        return;
+    }
+
     if (actionType === 'undo') {
         if (globalActionHistory.length === 0) return;
         const lastAction = globalActionHistory.pop();
-        if (lastAction.affectedLeft && leftTableState) leftTableState.handleUndo();
-        if (lastAction.affectedRight && rightTableState) rightTableState.handleUndo();
+        if (lastAction.affectedLeft && leftTableState) leftTableState.handleUndo(true);
+        if (lastAction.affectedRight && rightTableState) rightTableState.handleUndo(true);
         updatePostAction();
         return;
     }
@@ -398,18 +406,13 @@ class CSVPanel {
         }
     }
 
-    // === NEW: RESET METHOD ===
     resetData() {
         this.csvData = [];
         this.headerRow = [];
         this.selectedRows.clear();
         this.actionHistory = [];
-        
-        // Clear DOM
         document.getElementById(this.outputDivId).innerHTML = '';
         document.getElementById(this.filterDivId).innerHTML = '';
-        
-        // Clear File Input Value so the same file can be selected again
         const fileInput = document.getElementById(this.fileInputId);
         if(fileInput) fileInput.value = '';
     }
@@ -507,7 +510,8 @@ class CSVPanel {
         this.updateOutput();
     }
 
-    handleUndo() {
+    // === MODIFIED: Accepts param to skip UI update for "Undo All" ===
+    handleUndo(shouldUpdateUI = true) {
         if (this.actionHistory.length === 0) return;
         const lastAction = this.actionHistory.pop();
 
@@ -518,7 +522,10 @@ class CSVPanel {
                 this.csvData.splice(item.index, 0, item.row);
             });
         }
-        this.updateOutput();
+        
+        if (shouldUpdateUI) {
+            this.updateOutput();
+        }
     }
 
     reselectRowBySourceIndex(idx, colIdx = 0) {
@@ -714,6 +721,7 @@ function updatePaymentIDHighlights() {
     const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
     const maxLength = Math.max(leftRows.length, rightRows.length);
 
+    // CSS Vars
     const redBg = 'var(--highlight-red-bg)';
     const redText = 'var(--highlight-red-text)';
 
@@ -722,6 +730,7 @@ function updatePaymentIDHighlights() {
         const lCellID = lRow?.cells[0]; const rCellID = rRow?.cells[0];
         const lID = lCellID?.textContent.trim() || ""; const rID = rCellID?.textContent.trim() || "";
 
+        // Only Keep White if BOTH Exist AND Match
         if (lID !== "" && rID !== "" && lID === rID) {
             if (lCellID) lCellID.style.backgroundColor = '';
             if (rCellID) rCellID.style.backgroundColor = '';
@@ -734,14 +743,14 @@ function updatePaymentIDHighlights() {
             const lCell = lRow?.cells[colIdx]; const rCell = rRow?.cells[colIdx];
             if (!lCell || !rCell) return;
             const lText = lCell.textContent.trim(); const rText = rCell.textContent.trim();
-            if (lText === '' && rText === '') {
-                lCell.style.color = ''; lCell.style.fontWeight = '';
-                rCell.style.color = ''; rCell.style.fontWeight = '';
-                return;
-            }
+            
+            // Reset styles
+            lCell.style.color = ''; lCell.style.fontWeight = '';
+            rCell.style.color = ''; rCell.style.fontWeight = '';
+
+            if (lText === '' && rText === '') return;
+
             const lVal = parseMoney(lText); const rVal = parseMoney(rText);
-            if (lCell) { lCell.style.color = ''; lCell.style.fontWeight = ''; }
-            if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
 
             if (Math.abs(lVal - rVal) > 0.009) {
                 if (lVal < rVal && lCell) { lCell.style.color = redText; lCell.style.fontWeight = 'bold'; } 
