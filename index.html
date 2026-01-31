@@ -106,16 +106,43 @@
 <div id="helpModal" class="modal-overlay hidden">
     <div class="modal-content">
         <div class="modal-header">
-            <h2>How to Use</h2>
+            <h2>User Guide</h2>
             <button id="closeHelpBtn" class="close-modal">&times;</button>
         </div>
-        <div class="modal-body">
-            <p><strong>Instructions:</strong></p>
-            <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>
-            <ul>
-                <li>Upload CSV files for Left and Right panels.</li>
-                <li>Use Shift/Remove actions to align data.</li>
-                <li>Red Highlights indicate mismatches.</li>
+        <div class="modal-body" style="line-height: 1.6;">
+            
+            <h3 style="margin-top:0; color:var(--primary);">1. Getting Started</h3>
+            <ul style="padding-left: 20px; margin-bottom: 10px;">
+                <li><strong>Upload Files:</strong> Click "Choose File" in the Left (Back Office Payments Report) and Right (Financial Services Payments Report) panels to load your CSVs.</li>
+                <li><strong>Date Format:</strong> Important! Select the format (e.g., DD/MM/YYYY) that matches your Left CSV file <em>before</em> uploading to ensure dates and times appear correctly.</li>
+                <li><strong>Method/Channel Filters:</strong> Use the scrollable checkboxes below the file inputs to filter specific payment methods or channels.</li>
+            </ul>
+
+            <h3 style="margin-top:15px; color:var(--primary);">2. Global Controls (Header)</h3>
+            <ul style="padding-left: 20px; margin-bottom: 10px;">
+                <li><strong>Theme Toggle (🌙/☀):</strong> Switch between Dark and Light mode.</li>
+                <li><strong>Date Filter:</strong> Show transactions for a specific date only. <em>Note: Changing this automatically Undoes all manual shifts/deletes.</em></li>
+                <li><strong>Match IDs:</strong> Automatically inserts blank rows to align transactions that share the same Payment ID/Ref.</li>
+                <li><strong>Sort Amount:</strong> Sorts both tables by monetary value (High to Low).</li>
+                <li><strong>Red Only:</strong> Hides perfectly matched rows, showing only discrepancies (Red rows).</li>
+                <li><strong>Reset:</strong> Wipes all data and files to start over.</li>
+            </ul>
+
+            <h3 style="margin-top:15px; color:var(--primary);">3. Manual Reconciliation (Toolbar)</h3>
+            <p style="margin-bottom:5px; font-size:11px; color:var(--text-muted);">Select a row by clicking on it before using these buttons.</p>
+            <ul style="padding-left: 20px; margin-bottom: 10px;">
+                <li><strong>Shift Down (Spacebar):</strong> Inserts a blank row above the selected line to push data down and fix alignment issues.</li>
+                <li><strong>Remove Row (Delete):</strong> Deletes the selected row entirely.</li>
+                <li><strong>Undo (Ctrl+Z):</strong> Reverses the last Shift or Remove action.</li>
+                <li><strong>Undo All:</strong> Reverts the table to its original uploaded state (removes all manual shifts and deletions).</li>
+            </ul>
+
+            <h3 style="margin-top:15px; color:var(--primary);">4. Visual Cues & Shortcuts</h3>
+            <ul style="padding-left: 20px; margin-bottom: 0;">
+                <li><strong>Red Text:</strong> Indicates the Amount, Tip, or Paid value differs between the two tables.</li>
+                <li><strong>Red Background:</strong> Indicates the Payment IDs do not match on that row.</li>
+                <li><strong>Alt + Click:</strong> Instantly selects the entire row on <strong>BOTH</strong> tables for easier comparison.</li>
+                <li><strong>Floating Widget:</strong> Shows the total Sum and Count of currently selected cells.</li>
             </ul>
         </div>
     </div>
