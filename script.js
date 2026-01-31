@@ -1,6 +1,7 @@
 // ===================== Global State =====================
 let leftTableState = null;
 let rightTableState = null;
+let lastActiveTable = null; 
 let isMatchAllActive = true; 
 let isRedFilterActive = true;
 let isSortByAmountActive = false;
@@ -21,15 +22,15 @@ function setButtonStates() {
 
     if (matchBtn) {
         matchBtn.style.backgroundColor = isMatchAllActive ? '#16a34a' : '';
-        matchBtn.textContent = isMatchAllActive ? 'Alignment: ON' : 'Match All Payment IDs';
+        matchBtn.textContent = isMatchAllActive ? 'Alignment: ON' : 'Match IDs';
     }
     if (redBtn) {
         redBtn.style.backgroundColor = isRedFilterActive ? '#dc2626' : '';
-        redBtn.textContent = isRedFilterActive ? 'Showing Red Only' : 'Show Red Highlights Only';
+        redBtn.textContent = isRedFilterActive ? 'Red Only' : 'Show Red';
     }
     if (sortBtn) {
         sortBtn.style.backgroundColor = isSortByAmountActive ? '#16a34a' : '';
-        sortBtn.textContent = isSortByAmountActive ? 'Amount Sort: ON' : 'Sort by Amount';
+        sortBtn.textContent = isSortByAmountActive ? 'Amount Sort: ON' : 'Sort Amount';
     }
 }
 
@@ -38,40 +39,26 @@ function normalizeDate(raw, formatType) {
     if (raw === null || raw === undefined) return '';
     const str = String(raw).trim();
     if (str === '') return '';
-
     let datePart = str.split(/[\sT]/)[0]; 
-
     if (datePart.includes('-')) {
         const parts = datePart.split('-');
         if (parts.length === 3) {
             let [y, m, d] = parts;
             if (y.length === 2) y = '20' + y;
-            m = m.padStart(2, '0');
-            d = d.padStart(2, '0');
+            m = m.padStart(2, '0'); d = d.padStart(2, '0');
             return `${y}-${m}-${d}`;
         }
         return datePart;
     }
-
     if (datePart.includes('/')) {
         const parts = datePart.split('/');
         if (parts.length !== 3) return datePart;
-
         let day, month, year;
-        const fmt = formatType || 'DD/MM/YYYY';
-
-        if (fmt.startsWith('DD/MM')) {
-            [day, month, year] = parts;
-        } else if (fmt.startsWith('MM/DD')) {
-            [month, day, year] = parts;
-        } else {
-            [day, month, year] = parts;
-        }
-
+        if (formatType.startsWith('DD/MM')) { [day, month, year] = parts; } 
+        else if (formatType.startsWith('MM/DD')) { [month, day, year] = parts; } 
+        else { [day, month, year] = parts; }
         if (year.length === 2) year = '20' + year;
-        
-        day = day.padStart(2, '0');
-        month = month.padStart(2, '0');
+        day = day.padStart(2, '0'); month = month.padStart(2, '0');
         return `${year}-${month}-${day}`;
     }
     return datePart;
@@ -81,13 +68,10 @@ function formatToLongDate(isoDate, shortYear = false) {
     if (!isoDate) return ''; 
     const parts = isoDate.split('-');
     if (parts.length !== 3) return isoDate;
-
     let year = parts[0];
     const monthIndex = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
-
     if (shortYear && year.length === 4) year = year.slice(-2);
-
     if (monthIndex >= 0 && monthIndex < 12) {
         return `${MONTH_NAMES[monthIndex]} ${day}, ${year}`;
     }
@@ -105,7 +89,6 @@ function parseMoney(val) {
 function updateGlobalDateFilter() {
     const dateSet = new Set();
     const leftFormat = document.getElementById('leftDateFormat')?.value || 'DD/MM/YYYY';
-
     const extractDates = (state, format) => {
         if (!state || !state.csvData || !state.headerRow) return;
         const dateIdx = state.headerRow.indexOf("Date");
@@ -118,24 +101,19 @@ function updateGlobalDateFilter() {
             });
         }
     };
-
     extractDates(leftTableState, leftFormat);
     extractDates(rightTableState, 'ISO'); 
-
     const sortedDates = Array.from(dateSet).sort((a, b) => new Date(a) - new Date(b));
     const select = document.getElementById('globalDateFilter');
     if (!select) return;
-
     const currentVal = select.value;
     select.innerHTML = '<option value="">All Dates</option>';
-    
     sortedDates.forEach(isoDate => {
         const opt = document.createElement('option');
         opt.value = isoDate;
         opt.textContent = formatToLongDate(isoDate, true); 
         select.appendChild(opt);
     });
-
     if (dateSet.has(currentVal)) select.value = currentVal;
 }
 
@@ -164,54 +142,57 @@ setupBtn('sortAmountBtn', function() {
 });
 
 setupBtn('resetViewBtn', function() {
-    if (confirm("Are you sure you want to clear all data and reset the dashboard?")) {
-        const clearVal = (id) => { const el = document.getElementById(id); if (el) el.value = ""; };
-        const clearHTML = (id) => { const el = document.getElementById(id); if (el) el.innerHTML = ""; };
-
-        clearVal('csvFileLeft');
-        clearVal('csvFileRight');
-        clearHTML('outputLeft');
-        clearHTML('outputRight');
-        clearHTML('methodCheckboxesLeft');
-        clearHTML('channelCheckboxesRight');
-        
-        const dateFilter = document.getElementById('globalDateFilter');
-        if (dateFilter) dateFilter.innerHTML = '<option value="">All Dates</option>';
-        
+    if (confirm("Reset everything?")) {
+        document.getElementById('csvFileLeft').value = "";
+        document.getElementById('csvFileRight').value = "";
+        document.getElementById('outputLeft').innerHTML = "";
+        document.getElementById('outputRight').innerHTML = "";
+        document.getElementById('methodCheckboxesLeft').innerHTML = "";
+        document.getElementById('channelCheckboxesRight').innerHTML = "";
+        document.getElementById('globalDateFilter').innerHTML = '<option value="">All Dates</option>';
         isMatchAllActive = true;
         isRedFilterActive = true;
         isSortByAmountActive = false;
+        leftTableState.selectedRows.clear();
+        rightTableState.selectedRows.clear();
+        lastActiveTable = null;
         setButtonStates();
     }
 });
 
-const dateEl = document.getElementById('globalDateFilter');
-if(dateEl) dateEl.addEventListener('change', refreshBoth);
+document.getElementById('globalDateFilter').addEventListener('change', refreshBoth);
+document.getElementById('leftDateFormat').addEventListener('change', () => { updateGlobalDateFilter(); refreshBoth(); });
 
-const leftFormatEl = document.getElementById('leftDateFormat');
-if(leftFormatEl) leftFormatEl.addEventListener('change', () => {
-    updateGlobalDateFilter(); 
-    refreshBoth(); 
-});
+// Unified Buttons
+setupBtn('btnShift', () => performUnifiedAction('add'));
+setupBtn('btnRemove', () => performUnifiedAction('delete'));
+setupBtn('btnUndo', () => performUnifiedAction('undo'));
 
 // ===================== Core Functions =====================
-function manualRowAction(isRight, actionType) {
-    const state = isRight ? rightTableState : leftTableState;
-    if (!state) return;
+function performUnifiedAction(actionType) {
+    let targetTable = null;
+    if (actionType === 'undo') {
+        targetTable = lastActiveTable; 
+    } else {
+        if (leftTableState && leftTableState.selectedRows.size > 0) targetTable = leftTableState;
+        else if (rightTableState && rightTableState.selectedRows.size > 0) targetTable = rightTableState;
+    }
 
-    if (actionType === 'add') state.handleAddRow();
-    else if (actionType === 'delete') state.handleDeleteRow();
-    else if (actionType === 'undo') state.handleUndo();
+    if (!targetTable) return; 
+
+    if (actionType === 'add') targetTable.handleAddRow();
+    else if (actionType === 'delete') targetTable.handleDeleteRow();
+    else if (actionType === 'undo') targetTable.handleUndo();
 
     updatePaymentIDHighlights();
     
-    if (isMatchAllActive && !isSortByAmountActive) {
-        runAlignmentLogic();
+    // Auto-align ONLY if Match is ON, Sort is OFF, and it's NOT a manual edit (prevent jump)
+    if (isMatchAllActive && !isSortByAmountActive && actionType !== 'undo') {
+        // Skip runAlignmentLogic here to keep the manual edit stable
     }
     
-    if (isRedFilterActive) {
-        applyRedFilter();
-    } else {
+    if (isRedFilterActive) applyRedFilter();
+    else {
         updateTotalsDOM('outputLeft', false);
         updateTotalsDOM('outputRight', true);
     }
@@ -229,13 +210,8 @@ function updateTotalsDOM(outputId, isRight) {
     if (!tableBody) return;
     
     const totalsRow = tableBody.querySelector('.totals-row');
-    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'))
-                      .filter(tr => tr.style.display !== 'none');
-                      
-    if (rows.length === 0) {
-        if (totalsRow) totalsRow.innerHTML = '';
-        return;
-    }
+    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)')).filter(tr => tr.style.display !== 'none');
+    if (rows.length === 0) { if (totalsRow) totalsRow.innerHTML = ''; return; }
 
     const numCols = rows[0]?.children.length || (isRight ? 8 : 6);
     const sums = new Array(numCols).fill(0);
@@ -253,13 +229,11 @@ function updateTotalsDOM(outputId, isRight) {
         for (let i = 0; i < numCols; i++) {
             const td = document.createElement('td');
             if (i === 0) {
-                td.textContent = isRedFilterActive ? 'Filtered Total' : 'Total';
+                td.textContent = isRedFilterActive ? 'Filtered' : 'Total';
             } else if (isRight) {
-                // Right Cols: 0:ID, 1:Card, 2:Date, 3:Amount, 4:Tips, 5:Paid, 6:Ref, 7:Sur
                 if (i === 1 || i === 2) td.textContent = '';
                 else td.textContent = sums[i].toFixed(2);
             } else {
-                // Left Cols: 0:ID, 1:Acc, 2:Date, 3:Amount, 4:Tip, 5:Paid
                 if (i === 1 || i === 2) td.textContent = '';
                 else td.textContent = sums[i].toFixed(2);
             }
@@ -272,17 +246,13 @@ function applyRedFilter() {
     const leftRows = Array.from(document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)'));
     const rightRows = Array.from(document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)'));
     const redColor = 'rgb(248, 215, 218)';
-
-    leftRows.forEach(row => {
-        const isRed = row.cells[0]?.style.backgroundColor === redColor;
-        row.style.display = (isRedFilterActive && !isRed) ? 'none' : '';
-    });
-
-    rightRows.forEach(row => {
-        const isRed = row.cells[0]?.style.backgroundColor === redColor;
-        row.style.display = (isRedFilterActive && !isRed) ? 'none' : '';
-    });
-
+    const filter = (rows) => {
+        rows.forEach(row => {
+            const isRed = row.cells[0]?.style.backgroundColor === redColor;
+            row.style.display = (isRedFilterActive && !isRed) ? 'none' : '';
+        });
+    };
+    filter(leftRows); filter(rightRows);
     updateTotalsDOM('outputLeft', false);
     updateTotalsDOM('outputRight', true);
 }
@@ -357,6 +327,7 @@ class CSVPanel {
         });
     }
 
+    // === EDIT METHODS ===
     handleAddRow() {
         const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
         if (!tableBody || this.selectedRows.size === 0) return;
@@ -368,9 +339,7 @@ class CSVPanel {
         for (let i = 0; i < this.selectedRows.size; i++) {
             const tr = document.createElement('tr');
             for (let c = 0; c < numCols; c++) {
-                const td = document.createElement('td');
-                td.innerHTML = '&nbsp;';
-                tr.appendChild(td);
+                const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td);
             }
             tr.addEventListener('click', (e) => this.toggleRowSelection(tr, e));
             if (tableBody.rows[firstIdx]) tableBody.insertBefore(tr, tableBody.rows[firstIdx]);
@@ -382,6 +351,7 @@ class CSVPanel {
             addedRows.push(tr);
         }
         this.actionHistory.push({ type: 'add', rows: addedRows });
+        // NOTE: removed this.clearSelection() so user can keep shifting
     }
 
     handleDeleteRow() {
@@ -418,14 +388,22 @@ class CSVPanel {
         }
     }
 
+    // === SELECTION ===
     toggleRowSelection(tr, e) {
-        if (!e.ctrlKey && !e.metaKey) {
-            tr.parentNode.querySelectorAll('tr').forEach(r => r.classList.remove('selected'));
-            this.selectedRows.clear();
-        }
-        tr.classList.toggle('selected');
-        if (tr.classList.contains('selected')) this.selectedRows.add(tr);
-        else this.selectedRows.delete(tr);
+        if (this.isRightTable && leftTableState) leftTableState.clearSelection();
+        if (!this.isRightTable && rightTableState) rightTableState.clearSelection();
+        this.clearSelection(); // Strict 1 row rule
+        tr.classList.add('selected');
+        this.selectedRows.add(tr);
+        lastActiveTable = this;
+    }
+
+    clearSelection() {
+        const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
+        if (!tableBody) return;
+        const rows = tableBody.querySelectorAll('tr.selected');
+        rows.forEach(r => r.classList.remove('selected'));
+        this.selectedRows.clear();
     }
 
     updateOutput() {
@@ -447,57 +425,37 @@ class CSVPanel {
                 });
             }
         }
-
         if (this.isRightTable) {
             const sIdx = this.headerRow.indexOf("Status");
             if (sIdx !== -1) rows = rows.filter(r => (r[sIdx] || '').toUpperCase() !== 'FAILED');
         }
-
         const dateFilterVal = document.getElementById('globalDateFilter')?.value;
         const leftFormat = document.getElementById('leftDateFormat')?.value || 'DD/MM/YYYY';
         const dateIdx = this.headerRow.indexOf("Date");
-        
         if (dateFilterVal && dateIdx !== -1) {
             const format = this.isRightTable ? 'ISO' : leftFormat;
-            rows = rows.filter(r => {
-                const normalized = normalizeDate(r[dateIdx], format);
-                return normalized === dateFilterVal;
-            });
+            rows = rows.filter(r => normalizeDate(r[dateIdx], format) === dateFilterVal);
         }
 
         const sortFormat = this.isRightTable ? 'ISO' : leftFormat;
         const idColName = this.isRightTable ? 'Payment ID' : 'PaymentRef';
         const idIdx = this.headerRow.indexOf(idColName);
-        
-        const amountColName = 'Amount';
-        let amountIdx = this.headerRow.indexOf(amountColName);
+        const paidColName = this.isRightTable ? 'Amount' : 'Paid'; 
+        const paidIdx = this.headerRow.indexOf(paidColName);
 
-        if (isSortByAmountActive && amountIdx !== -1) {
-            if (this.isRightTable) {
-                const tipIdx = this.headerRow.indexOf('Gratuity amount');
-                rows.sort((a, b) => {
-                    const netA = parseMoney(a[amountIdx]) - (tipIdx !== -1 ? parseMoney(a[tipIdx]) : 0);
-                    const netB = parseMoney(b[amountIdx]) - (tipIdx !== -1 ? parseMoney(b[tipIdx]) : 0);
-                    return netB - netA;
-                });
-            } else {
-                rows.sort((a, b) => {
-                    const valA = parseMoney(a[amountIdx]);
-                    const valB = parseMoney(b[amountIdx]);
-                    return valB - valA;
-                });
-            }
+        if (isSortByAmountActive && paidIdx !== -1) {
+            rows.sort((a, b) => {
+                const valA = parseMoney(a[paidIdx]); const valB = parseMoney(b[paidIdx]);
+                return valB - valA; // Desc
+            });
         } else if (dateIdx !== -1) {
             rows.sort((a, b) => {
                 const tA = new Date(normalizeDate(a[dateIdx], sortFormat)).getTime() || 0;
                 const tB = new Date(normalizeDate(b[dateIdx], sortFormat)).getTime() || 0;
                 if (tA !== tB) return tA - tB;
-                
                 if (idIdx !== -1) {
-                    const idA = (a[idIdx] || '').toLowerCase();
-                    const idB = (b[idIdx] || '').toLowerCase();
-                    if (idA < idB) return -1;
-                    if (idA > idB) return 1;
+                    const idA = (a[idIdx] || '').toLowerCase(); const idB = (b[idIdx] || '').toLowerCase();
+                    if (idA < idB) return -1; if (idA > idB) return 1;
                 }
                 return 0;
             });
@@ -517,27 +475,19 @@ class CSVPanel {
             displayHeaders.forEach(h => {
                 const td = document.createElement('td');
                 let lookup = h;
-                
                 if (this.isRightTable) {
-                    if (h === 'Amount') {
+                    if (h === 'Amount') { // Net Calc
                         const amtIdx = this.headerRow.indexOf('Amount');
                         const tipIdx = this.headerRow.indexOf('Gratuity amount');
                         const amtVal = amtIdx !== -1 ? parseMoney(r[amtIdx]) : 0;
                         const tipVal = tipIdx !== -1 ? parseMoney(r[tipIdx]) : 0;
-                        td.textContent = (amtVal - tipVal).toFixed(2);
-                        tr.appendChild(td);
-                        return; 
+                        td.textContent = (amtVal - tipVal).toFixed(2); tr.appendChild(td); return; 
                     }
-
-                    if (h === 'Paid') {
-                        lookup = 'Amount';
-                    }
-
+                    if (h === 'Paid') lookup = 'Amount';
                     if (h === 'Tips') lookup = 'Gratuity amount';
                     if (h === 'Refunds') lookup = 'Refunded amount';
                     if (h === 'Surcharge') lookup = 'Surcharge amount';
                 }
-
                 const idx = this.headerRow.indexOf(lookup);
                 const moneyFields = ['Amount', 'Tips', 'Paid', 'Refunds', 'Tip', 'Gratuity amount', 'Refunded amount', 'Surcharge amount'];
                 
@@ -576,21 +526,16 @@ class CSVPanel {
     }
 }
 
-// ===================== Highlight & Comparison Logic =====================
+// ===================== Highlights & Alignment =====================
 function updatePaymentIDHighlights() {
     const leftRows = document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)');
     const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
     const maxLength = Math.max(leftRows.length, rightRows.length);
 
     for (let index = 0; index < maxLength; index++) {
-        const lRow = leftRows[index];
-        const rRow = rightRows[index];
-        
-        // 1. Payment ID Comparison (Column 0)
-        const lCellID = lRow?.cells[0];
-        const rCellID = rRow?.cells[0];
-        const lID = lCellID?.textContent.trim() || "";
-        const rID = rCellID?.textContent.trim() || "";
+        const lRow = leftRows[index]; const rRow = rightRows[index];
+        const lCellID = lRow?.cells[0]; const rCellID = rRow?.cells[0];
+        const lID = lCellID?.textContent.trim() || ""; const rID = rCellID?.textContent.trim() || "";
 
         if (lID !== rID || lID === "" || rID === "") {
             if (lCellID) lCellID.style.backgroundColor = '#f8d7da'; 
@@ -600,31 +545,16 @@ function updatePaymentIDHighlights() {
             if (rCellID) rCellID.style.backgroundColor = '';
         }
 
-        // 2. Money Comparison Loop (Columns 3, 4, 5)
-        // Col 3: Amount (Left) vs Amount (Right - Net)
-        // Col 4: Tip (Left) vs Tips (Right)
-        // Col 5: Paid (Left) vs Paid (Right - Total)
-        const checkCols = [3, 4, 5];
-
-        checkCols.forEach(colIdx => {
-            const lCell = lRow?.cells[colIdx];
-            const rCell = rRow?.cells[colIdx];
-            
+        [3, 4, 5].forEach(colIdx => {
+            const lCell = lRow?.cells[colIdx]; const rCell = rRow?.cells[colIdx];
             const lVal = lCell ? parseMoney(lCell.textContent) : 0;
             const rVal = rCell ? parseMoney(rCell.textContent) : 0;
+            if (lCell) { lCell.style.color = ''; lCell.style.fontWeight = ''; }
+            if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
 
-            if (lVal.toFixed(2) !== rVal.toFixed(2)) {
-                if (lCell) {
-                    lCell.style.color = '#dc2626'; 
-                    lCell.style.fontWeight = 'bold';
-                }
-                if (rCell) {
-                    rCell.style.color = '#dc2626'; 
-                    rCell.style.fontWeight = 'bold';
-                }
-            } else {
-                if (lCell) { lCell.style.color = ''; lCell.style.fontWeight = ''; }
-                if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
+            if (Math.abs(lVal - rVal) > 0.009) {
+                if (lVal < rVal && lCell) { lCell.style.color = '#dc2626'; lCell.style.fontWeight = 'bold'; } 
+                else if (rVal < lVal && rCell) { rCell.style.color = '#dc2626'; rCell.style.fontWeight = 'bold'; }
             }
         });
     }
@@ -632,81 +562,34 @@ function updatePaymentIDHighlights() {
 
 function insertBlankRow(tbody, index, numCols) {
     const tr = document.createElement('tr');
-    for (let c = 0; c < numCols; c++) {
-        const td = document.createElement('td');
-        td.innerHTML = '&nbsp;';
-        tr.appendChild(td);
-    }
+    for (let c = 0; c < numCols; c++) { const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td); }
     if (tbody.rows[index]) tbody.insertBefore(tr, tbody.rows[index]);
-    else {
-        const totals = tbody.querySelector('.totals-row');
-        if (totals) tbody.insertBefore(tr, totals);
-        else tbody.appendChild(tr);
-    }
+    else { const totals = tbody.querySelector('.totals-row'); if (totals) tbody.insertBefore(tr, totals); else tbody.appendChild(tr); }
 }
 
 function runAlignmentLogic() {
     const leftTbody = document.querySelector('#outputLeft table tbody');
     const rightTbody = document.querySelector('#outputRight table tbody');
     if (!leftTbody || !rightTbody) return;
-
-    let i = 0;
-    let safetyCounter = 0;
-    const maxIterations = 5000; 
+    let i = 0; let safetyCounter = 0; const maxIterations = 5000; 
 
     while (i < Math.max(leftTbody.rows.length - 1, rightTbody.rows.length - 1)) {
-        if (safetyCounter++ > maxIterations) {
-            console.warn("Alignment safety break triggered");
-            break;
-        }
-
-        const lRow = leftTbody.rows[i], rRow = rightTbody.rows[i];
+        if (safetyCounter++ > maxIterations) break;
+        const lRow = leftTbody.rows[i]; const rRow = rightTbody.rows[i];
         if (lRow?.classList.contains('totals-row') || rRow?.classList.contains('totals-row')) break;
-
-        const lID = lRow?.cells[0]?.textContent.trim() || "";
-        const rID = rRow?.cells[0]?.textContent.trim() || "";
-
+        const lID = lRow?.cells[0]?.textContent.trim() || ""; const rID = rRow?.cells[0]?.textContent.trim() || "";
         if (lID === rID && lID !== "") { i++; continue; }
-
-        let fInR = false;
-        for (let r = i + 1; r < rightTbody.rows.length - 1; r++) {
-            if (rightTbody.rows[r].cells[0].textContent.trim() === lID && lID !== "") { fInR = true; break; }
-        }
-        let fInL = false;
-        for (let l = i + 1; l < leftTbody.rows.length - 1; l++) {
-            if (leftTbody.rows[l].cells[0].textContent.trim() === rID && rID !== "") { fInL = true; break; }
-        }
-
-        if (fInR) insertBlankRow(leftTbody, i, 6);
-        else if (fInL) insertBlankRow(rightTbody, i, 8); 
-        else i++;
+        let fInR = false; for (let r = i + 1; r < rightTbody.rows.length - 1; r++) { if (rightTbody.rows[r].cells[0].textContent.trim() === lID && lID !== "") { fInR = true; break; } }
+        let fInL = false; for (let l = i + 1; l < leftTbody.rows.length - 1; l++) { if (leftTbody.rows[l].cells[0].textContent.trim() === rID && rID !== "") { fInL = true; break; } }
+        if (fInR) insertBlankRow(leftTbody, i, 6); else if (fInL) insertBlankRow(rightTbody, i, 8); else i++;
     }
-
     let lCount = leftTbody.querySelectorAll('tr:not(.totals-row)').length;
     let rCount = rightTbody.querySelectorAll('tr:not(.totals-row)').length;
     while (lCount < rCount) { insertBlankRow(leftTbody, lCount, 6); lCount++; }
     while (rCount < lCount) { insertBlankRow(rightTbody, rCount, 8); rCount++; }
-
     updatePaymentIDHighlights();
-    if (isRedFilterActive) applyRedFilter();
-    else {
-        updateTotalsDOM('outputLeft', false);
-        updateTotalsDOM('outputRight', true);
-    }
+    if (isRedFilterActive) applyRedFilter(); else { updateTotalsDOM('outputLeft', false); updateTotalsDOM('outputRight', true); }
 }
 
-// ================== Initialization ==================
 leftTableState = new CSVPanel('csvFileLeft', 'methodCheckboxesLeft', 'outputLeft', false);
 rightTableState = new CSVPanel('csvFileRight', 'channelCheckboxesRight', 'outputRight', true);
-
-const bindBtn = (id, right, type) => {
-    const b = document.getElementById(id);
-    if(b) b.onclick = () => manualRowAction(right, type);
-};
-
-bindBtn('addRowBtnLeft', false, 'add');
-bindBtn('addRowBtnRight', true, 'add');
-bindBtn('removeRowBtnLeft', false, 'delete');
-bindBtn('removeRowBtnRight', true, 'delete');
-bindBtn('undoBtnLeft', false, 'undo');
-bindBtn('undoBtnRight', true, 'undo');
