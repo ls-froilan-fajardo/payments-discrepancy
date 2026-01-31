@@ -85,6 +85,39 @@ function parseMoney(val) {
     return isNaN(num) ? 0 : num;
 }
 
+// ===================== Floating Widget Logic =====================
+const widget = document.getElementById('floatingWidget');
+const header = document.getElementById('floatingHeader');
+let isDragging = false;
+let startX, startY, initialLeft, initialTop;
+
+header.addEventListener('mousedown', (e) => {
+    isDragging = true; startX = e.clientX; startY = e.clientY;
+    const rect = widget.getBoundingClientRect();
+    initialLeft = rect.left; initialTop = rect.top;
+    widget.style.bottom = 'auto'; widget.style.right = 'auto';
+    widget.style.left = `${initialLeft}px`; widget.style.top = `${initialTop}px`;
+    widget.style.opacity = '0.9';
+});
+document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX; const dy = e.clientY - startY;
+    widget.style.left = `${initialLeft + dx}px`; widget.style.top = `${initialTop + dy}px`;
+});
+document.addEventListener('mouseup', () => { isDragging = false; widget.style.opacity = '1'; });
+
+function updateFloatingStats() {
+    const selectedCells = document.querySelectorAll('td.selected-cell');
+    let sum = 0; let count = 0;
+    selectedCells.forEach(cell => {
+        const val = parseMoney(cell.textContent);
+        if (!isNaN(val)) sum += val;
+        count++;
+    });
+    document.getElementById('floatSum').textContent = sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    document.getElementById('floatCount').textContent = count;
+}
+
 // ===================== Global Logic =====================
 function updateGlobalDateFilter() {
     const dateSet = new Set();
@@ -156,6 +189,7 @@ setupBtn('resetViewBtn', function() {
         leftTableState.selectedRows.clear();
         rightTableState.selectedRows.clear();
         lastActiveTable = null;
+        updateFloatingStats();
         setButtonStates();
     }
 });
@@ -167,6 +201,14 @@ document.getElementById('leftDateFormat').addEventListener('change', () => { upd
 setupBtn('btnShift', () => performUnifiedAction('add'));
 setupBtn('btnRemove', () => performUnifiedAction('delete'));
 setupBtn('btnUndo', () => performUnifiedAction('undo'));
+
+// Keyboard Shortcuts
+document.addEventListener('keydown', (e) => {
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+    if (e.code === 'Space') { e.preventDefault(); performUnifiedAction('add'); }
+    if (e.code === 'Delete') { e.preventDefault(); performUnifiedAction('delete'); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); performUnifiedAction('undo'); }
+});
 
 // ===================== Core Functions =====================
 function performUnifiedAction(actionType) {
@@ -186,10 +228,8 @@ function performUnifiedAction(actionType) {
 
     updatePaymentIDHighlights();
     
-    // Auto-align ONLY if Match is ON, Sort is OFF, and it's NOT a manual edit (prevent jump)
-    if (isMatchAllActive && !isSortByAmountActive && actionType !== 'undo') {
-        // Skip runAlignmentLogic here to keep the manual edit stable
-    }
+    // Skip auto-align on manual edits
+    if (isMatchAllActive && !isSortByAmountActive && actionType !== 'undo') { }
     
     if (isRedFilterActive) applyRedFilter();
     else {
@@ -338,20 +378,17 @@ class CSVPanel {
         const numCols = this.isRightTable ? 8 : 6;
         for (let i = 0; i < this.selectedRows.size; i++) {
             const tr = document.createElement('tr');
-            for (let c = 0; c < numCols; c++) {
-                const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td);
-            }
+            for (let c = 0; c < numCols; c++) { const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td); }
+            
+            // Re-attach click listener
             tr.addEventListener('click', (e) => this.toggleRowSelection(tr, e));
+            
             if (tableBody.rows[firstIdx]) tableBody.insertBefore(tr, tableBody.rows[firstIdx]);
-            else {
-                const totals = tableBody.querySelector('.totals-row');
-                if (totals) tableBody.insertBefore(tr, totals);
-                else tableBody.appendChild(tr);
-            }
+            else { const totals = tableBody.querySelector('.totals-row'); if (totals) tableBody.insertBefore(tr, totals); else tableBody.appendChild(tr); }
             addedRows.push(tr);
         }
         this.actionHistory.push({ type: 'add', rows: addedRows });
-        // NOTE: removed this.clearSelection() so user can keep shifting
+        // selection is persistent
     }
 
     handleDeleteRow() {
@@ -366,6 +403,7 @@ class CSVPanel {
         });
         this.selectedRows.clear();
         this.actionHistory.push({ type: 'delete', rows: removedRowsInfo });
+        updateFloatingStats();
     }
 
     handleUndo() {
@@ -386,24 +424,51 @@ class CSVPanel {
                 }
             });
         }
+        updateFloatingStats();
     }
 
-    // === SELECTION ===
+    // === SELECTION LOGIC ===
     toggleRowSelection(tr, e) {
         if (this.isRightTable && leftTableState) leftTableState.clearSelection();
         if (!this.isRightTable && rightTableState) rightTableState.clearSelection();
-        this.clearSelection(); // Strict 1 row rule
-        tr.classList.add('selected');
-        this.selectedRows.add(tr);
+
+        const isMulti = e.ctrlKey || e.metaKey;
+        const cell = e.target.closest('td');
+
+        if (!isMulti) this.clearSelection();
+
+        if (cell) {
+            if (isMulti) cell.classList.toggle('selected-cell');
+            else cell.classList.add('selected-cell');
+        } else {
+            tr.cells[0]?.classList.add('selected-cell');
+        }
+
+        const hasSelectedCells = tr.querySelector('.selected-cell') !== null;
+        if (hasSelectedCells) {
+            tr.classList.add('active-row');
+            this.selectedRows.add(tr);
+        } else {
+            tr.classList.remove('active-row');
+            this.selectedRows.delete(tr);
+        }
+
         lastActiveTable = this;
+        updateFloatingStats();
     }
 
     clearSelection() {
         const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
         if (!tableBody) return;
-        const rows = tableBody.querySelectorAll('tr.selected');
-        rows.forEach(r => r.classList.remove('selected'));
+        
+        const rows = tableBody.querySelectorAll('tr.active-row');
+        rows.forEach(r => r.classList.remove('active-row'));
+        
+        const cells = tableBody.querySelectorAll('td.selected-cell');
+        cells.forEach(c => c.classList.remove('selected-cell'));
+
         this.selectedRows.clear();
+        updateFloatingStats();
     }
 
     updateOutput() {
@@ -446,7 +511,7 @@ class CSVPanel {
         if (isSortByAmountActive && paidIdx !== -1) {
             rows.sort((a, b) => {
                 const valA = parseMoney(a[paidIdx]); const valB = parseMoney(b[paidIdx]);
-                return valB - valA; // Desc
+                return valB - valA; 
             });
         } else if (dateIdx !== -1) {
             rows.sort((a, b) => {
