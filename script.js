@@ -261,20 +261,19 @@ function performUnifiedAction(actionType) {
 
     // === UNDO ALL LOGIC ===
     if (actionType === 'undoAll') {
-        // Loop backwards through all history
         while (globalActionHistory.length > 0) {
             const lastAction = globalActionHistory.pop();
-            // Pass false to skip UI update for performance
+            // Undo individually, skipping UI updates until the end
             if (lastAction.affectedLeft && leftTableState) leftTableState.handleUndo(false);
             if (lastAction.affectedRight && rightTableState) rightTableState.handleUndo(false);
         }
-        // Update once at end
         if (leftTableState) leftTableState.updateOutput();
         if (rightTableState) rightTableState.updateOutput();
         updatePostAction();
         return;
     }
 
+    // === SINGLE UNDO ===
     if (actionType === 'undo') {
         if (globalActionHistory.length === 0) return;
         const lastAction = globalActionHistory.pop();
@@ -497,6 +496,7 @@ class CSVPanel {
         if (this.selectedRows.size === 0) return;
         const selectedTrs = Array.from(this.selectedRows);
         const indices = selectedTrs.map(tr => parseInt(tr.dataset.sourceIndex)).filter(i => !isNaN(i));
+        // Remove duplicates and sort DESCENDING to delete safely
         const uniqueIndices = [...new Set(indices)].sort((a, b) => b - a);
         
         const deletedItems = [];
@@ -510,15 +510,18 @@ class CSVPanel {
         this.updateOutput();
     }
 
-    // === MODIFIED: Accepts param to skip UI update for "Undo All" ===
+    // === BUG FIX: Reverse Order for Delete Restoration ===
     handleUndo(shouldUpdateUI = true) {
         if (this.actionHistory.length === 0) return;
         const lastAction = this.actionHistory.pop();
 
         if (lastAction.type === 'add') {
+            // Undo shift: remove the ghost row
             this.csvData.splice(lastAction.index, 1);
         } else if (lastAction.type === 'delete') {
-            lastAction.items.forEach(item => {
+            // Undo delete: We must restore rows from Low Index to High Index.
+            // Since items were stored High -> Low (during delete), we REVERSE here.
+            [...lastAction.items].reverse().forEach(item => {
                 this.csvData.splice(item.index, 0, item.row);
             });
         }
