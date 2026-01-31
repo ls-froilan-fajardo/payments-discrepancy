@@ -10,52 +10,40 @@
 
 <div class="header-row">
     <div class="main-title-group">
-        <h1>Payments Reconciliation Dashboard</h1>
-        <span class="info-text">Automated horizontal alignment for Payment IDs</span>
+        <h1>Payments Dashboard</h1>
     </div>
     
     <div class="global-controls-container">
-        <label style="font-size:11px; font-weight:600; color:#475569;">Filter Date:</label>
-        
+        <label style="font-size:11px; font-weight:600; color:#475569;">Filter:</label>
         <select id="globalDateFilter" class="date-select">
             <option value="">All Dates</option>
         </select>
         
-        <button id="matchAllBtn" class="primary-btn">Match All Payment IDs</button>
-        <button id="sortAmountBtn" class="primary-btn filter-btn">Sort by Amount</button>
-        <button id="showRedOnlyBtn" class="primary-btn filter-btn">Show Red Highlights Only</button>
-        <button id="resetViewBtn" class="primary-btn reset-btn">Reset All</button>
+        <button id="matchAllBtn" class="primary-btn">Match IDs</button>
+        <button id="sortAmountBtn" class="primary-btn filter-btn">Sort Amount</button>
+        <button id="showRedOnlyBtn" class="primary-btn filter-btn">Red Only</button>
+        <button id="resetViewBtn" class="primary-btn reset-btn">Reset</button>
     </div>
 </div>
 
 <div class="controls-section">
-    
     <div class="control-panel left-control-panel">
         <div class="panel-header">
-            <h3>Back Office Payments</h3>
+            <h3>Back Office</h3>
             <input type="file" id="csvFileLeft" accept=".csv" />
         </div>
-        
         <div style="margin-bottom: 5px;">
-            <label style="font-size:10px; font-weight:bold; color:#64748b;">CSV Date Format:</label>
             <select id="leftDateFormat" class="date-select" style="width:100%; margin:0;">
-                <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 25/12/2023)</option>
-                <option value="DD/MM/YY">DD/MM/YY (e.g. 25/12/23)</option>
-                <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 12/25/2023)</option>
-                <option value="MM/DD/YY">MM/DD/YY (e.g. 12/25/23)</option>
-                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                <option value="DD/MM/YY">DD/MM/YY</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                <option value="MM/DD/YY">MM/DD/YY</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
             </select>
         </div>
-
         <div class="checkbox-area">
-            <strong>Filter by Method:</strong>
+            <strong>Method:</strong>
             <div class="checkboxes" id="methodCheckboxesLeft"></div>
-        </div>
-
-        <div class="button-row">
-            <button id="addRowBtnLeft" class="btn-shift">Shift Down</button>
-            <button id="removeRowBtnLeft" class="btn-remove">Remove</button>
-            <button id="undoBtnLeft" class="btn-undo">Undo</button>
         </div>
     </div>
 
@@ -64,22 +52,18 @@
             <h3>Financial Services</h3>
             <input type="file" id="csvFileRight" accept=".csv" />
         </div>
-
-        <div style="margin-bottom: 5px; height: 38px; display:flex; align-items:end;">
-            <span class="info-text">Right table auto-detects ISO format</span>
-        </div>
-
-        <div class="checkbox-area">
-            <strong>Filter by Channel:</strong>
+        <div style="margin-bottom: 5px; height: 26px;"></div> <div class="checkbox-area">
+            <strong>Channel:</strong>
             <div class="checkboxes" id="channelCheckboxesRight"></div>
         </div>
-
-        <div class="button-row">
-            <button id="addRowBtnRight" class="btn-shift">Shift Down</button>
-            <button id="removeRowBtnRight" class="btn-remove">Remove</button>
-            <button id="undoBtnRight" class="btn-undo">Undo</button>
-        </div>
     </div>
+</div>
+
+<div class="table-action-toolbar">
+    <span class="label-text">Selected Row Actions:</span>
+    <button id="btnShift" class="btn-shift">Shift Down</button>
+    <button id="btnRemove" class="btn-remove">Remove Row</button>
+    <div style="flex-grow:1"></div> <button id="btnUndo" class="btn-undo">Undo Last Action</button>
 </div>
 
 <div class="unified-scroll-view">
