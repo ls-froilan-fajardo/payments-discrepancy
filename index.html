@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Payments Reconciliation Tool</title>
+    <title>Payments Reconciliation Tool</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -15,21 +15,38 @@
     </div>
     
     <div class="global-controls-container">
+        <label style="font-size:11px; font-weight:600; color:#475569;">Filter Date:</label>
+        
+        <select id="globalDateFilter" class="date-select">
+            <option value="">All Dates</option>
+        </select>
+        
         <button id="matchAllBtn" class="primary-btn">Match All Payment IDs</button>
+        <button id="sortAmountBtn" class="primary-btn filter-btn">Sort by Amount</button>
         <button id="showRedOnlyBtn" class="primary-btn filter-btn">Show Red Highlights Only</button>
         <button id="resetViewBtn" class="primary-btn reset-btn">Reset All</button>
     </div>
 </div>
 
-<div class="flex-container">
-    <div class="panel left-panel">
+<div class="controls-section">
+    
+    <div class="control-panel left-control-panel">
         <div class="panel-header">
-            <div class="title-with-button">
-                <h3>Back Office Payments Report</h3>
-                <input type="file" id="csvFileLeft" accept=".csv" />
-            </div>
+            <h3>Back Office Payments</h3>
+            <input type="file" id="csvFileLeft" accept=".csv" />
         </div>
         
+        <div style="margin-bottom: 5px;">
+            <label style="font-size:10px; font-weight:bold; color:#64748b;">CSV Date Format:</label>
+            <select id="leftDateFormat" class="date-select" style="width:100%; margin:0;">
+                <option value="DD/MM/YYYY">DD/MM/YYYY (e.g. 25/12/2023)</option>
+                <option value="DD/MM/YY">DD/MM/YY (e.g. 25/12/23)</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY (e.g. 12/25/2023)</option>
+                <option value="MM/DD/YY">MM/DD/YY (e.g. 12/25/23)</option>
+                <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+            </select>
+        </div>
+
         <div class="checkbox-area">
             <strong>Filter by Method:</strong>
             <div class="checkboxes" id="methodCheckboxesLeft"></div>
@@ -40,16 +57,16 @@
             <button id="removeRowBtnLeft" class="btn-remove">Remove</button>
             <button id="undoBtnLeft" class="btn-undo">Undo</button>
         </div>
-
-        <div class="table-container" id="outputLeft"></div>
     </div>
 
-    <div class="panel right-panel">
+    <div class="control-panel right-control-panel">
         <div class="panel-header">
-            <div class="title-with-button">
-                <h3>Financial Services Payments Report</h3>
-                <input type="file" id="csvFileRight" accept=".csv" />
-            </div>
+            <h3>Financial Services</h3>
+            <input type="file" id="csvFileRight" accept=".csv" />
+        </div>
+
+        <div style="margin-bottom: 5px; height: 38px; display:flex; align-items:end;">
+            <span class="info-text">Right table auto-detects ISO format</span>
         </div>
 
         <div class="checkbox-area">
@@ -62,8 +79,13 @@
             <button id="removeRowBtnRight" class="btn-remove">Remove</button>
             <button id="undoBtnRight" class="btn-undo">Undo</button>
         </div>
+    </div>
+</div>
 
-        <div class="table-container" id="outputRight"></div>
+<div class="unified-scroll-view">
+    <div class="split-table-container">
+        <div id="outputLeft" class="table-side left-side"></div>
+        <div id="outputRight" class="table-side right-side"></div>
     </div>
 </div>
 
