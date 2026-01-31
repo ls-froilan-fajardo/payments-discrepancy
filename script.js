@@ -1,7 +1,7 @@
 // ===================== Global State =====================
 let leftTableState = null;
 let rightTableState = null;
-let globalActionHistory = []; // Tracks which tables were affected by each action
+let globalActionHistory = []; 
 let isMatchAllActive = true; 
 let isRedFilterActive = true;
 let isSortByAmountActive = false;
@@ -216,9 +216,8 @@ document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); performUnifiedAction('undo'); }
 });
 
-// ===================== Core Functions (UPDATED FOR MULTI-TABLE ACTION) =====================
+// ===================== Core Functions =====================
 function performUnifiedAction(actionType) {
-    
     // 1. Identify which tables have selections
     const isLeftActive = leftTableState && leftTableState.selectedRows.size > 0;
     const isRightActive = rightTableState && rightTableState.selectedRows.size > 0;
@@ -226,32 +225,27 @@ function performUnifiedAction(actionType) {
     // Handle Undo Globally
     if (actionType === 'undo') {
         if (globalActionHistory.length === 0) return;
-        
-        // Pop the last global action to see which tables were involved
         const lastAction = globalActionHistory.pop();
-        
         if (lastAction.affectedLeft && leftTableState) leftTableState.handleUndo();
         if (lastAction.affectedRight && rightTableState) rightTableState.handleUndo();
-        
         updatePostAction();
         return;
     }
 
     if (!isLeftActive && !isRightActive) return;
 
-    // Record this action in history so we know what to undo later
+    // Record Action
     globalActionHistory.push({
         type: actionType,
         affectedLeft: isLeftActive,
         affectedRight: isRightActive
     });
 
-    // Execute actions on respective tables
+    // Execute
     if (isLeftActive) {
         if (actionType === 'add') leftTableState.handleAddRow();
         else if (actionType === 'delete') leftTableState.handleDeleteRow();
     }
-
     if (isRightActive) {
         if (actionType === 'add') rightTableState.handleAddRow();
         else if (actionType === 'delete') rightTableState.handleDeleteRow();
@@ -262,10 +256,7 @@ function performUnifiedAction(actionType) {
 
 function updatePostAction() {
     updatePaymentIDHighlights();
-    
-    // Skip auto-align on manual edits
     if (isMatchAllActive && !isSortByAmountActive) { }
-    
     if (isRedFilterActive) applyRedFilter();
     else {
         updateTotalsDOM('outputLeft', false);
@@ -415,18 +406,19 @@ class CSVPanel {
     handleAddRow() {
         if (this.selectedRows.size === 0) return;
         
-        // Handle shifting for ALL selected rows (though usually contiguous)
-        // To avoid index shifting issues, sort by index descending (if multiple)
-        // But for "Shift Down" visually, we usually just want to insert a blank above the top selected?
-        // Let's stick to the current logic: Insert ghost row above EACH selected block start?
-        // Simplified: Insert above the FIRST selected row found.
-        
         const selectedTrs = Array.from(this.selectedRows);
         // Find min source index
         let minIndex = Infinity;
+        let targetColIdx = 0; 
+
         selectedTrs.forEach(tr => {
             const idx = parseInt(tr.dataset.sourceIndex);
-            if (!isNaN(idx) && idx < minIndex) minIndex = idx;
+            if (!isNaN(idx) && idx < minIndex) {
+                minIndex = idx;
+                // Capture the selected cell index of the uppermost row
+                const selCell = tr.querySelector('.selected-cell');
+                if (selCell) targetColIdx = selCell.cellIndex;
+            }
         });
 
         if (minIndex === Infinity) return;
@@ -439,16 +431,14 @@ class CSVPanel {
         this.actionHistory.push({ type: 'add', index: minIndex });
         
         this.updateOutput();
-        // Shift selection down by 1 so user can keep clicking
-        this.reselectRowBySourceIndex(minIndex + 1);
+        // Shift selection down, keeping the specific cell selected
+        this.reselectRowBySourceIndex(minIndex + 1, targetColIdx);
     }
 
     handleDeleteRow() {
         if (this.selectedRows.size === 0) return;
         const selectedTrs = Array.from(this.selectedRows);
         const indices = selectedTrs.map(tr => parseInt(tr.dataset.sourceIndex)).filter(i => !isNaN(i));
-        
-        // Important: Remove duplicates and sort descending
         const uniqueIndices = [...new Set(indices)].sort((a, b) => b - a);
         
         const deletedItems = [];
@@ -476,30 +466,28 @@ class CSVPanel {
         this.updateOutput();
     }
 
-    reselectRowBySourceIndex(idx) {
+    reselectRowBySourceIndex(idx, colIdx = 0) {
         const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
         if (!tableBody) return;
         const target = Array.from(tableBody.querySelectorAll('tr')).find(tr => parseInt(tr.dataset.sourceIndex) === idx);
         if (target) {
-            // Force multi-select style logic so we don't clear existing if being called sequentially
-            // But here we are refreshing the view, so we just want to re-highlight.
-            // We use 'true' for isMulti to prevent clearing other table selections if this is called in loop
-            this.toggleRowSelection(target, { ctrlKey: true, target: target.cells[0] || target });
+            // Force select, targeting specific cell
+            const targetCell = target.cells[colIdx] || target.cells[0];
+            this.toggleRowSelection(target, { ctrlKey: true, target: targetCell });
         }
     }
 
-    // === SELECTION LOGIC (UPDATED FOR CROSS-TABLE MULTI-SELECT) ===
+    // === SELECTION LOGIC ===
     toggleRowSelection(tr, e) {
         const isMulti = e.ctrlKey || e.metaKey;
         const cell = e.target.closest('td');
 
-        // If NOT holding Ctrl, clear EVERYTHING (Left and Right)
+        // If NOT holding Ctrl, clear selections from BOTH tables
         if (!isMulti) {
             if (leftTableState) leftTableState.clearSelectionInternal();
             if (rightTableState) rightTableState.clearSelectionInternal();
         }
 
-        // Toggle Cell
         if (cell) {
             if (isMulti && cell.classList.contains('selected-cell')) {
                 cell.classList.remove('selected-cell');
@@ -510,7 +498,6 @@ class CSVPanel {
             tr.cells[0]?.classList.add('selected-cell');
         }
 
-        // Check if row still has any selected cells
         const hasSelectedCells = tr.querySelector('.selected-cell') !== null;
         if (hasSelectedCells) {
             tr.classList.add('active-row');
@@ -523,6 +510,7 @@ class CSVPanel {
         updateFloatingStats();
     }
 
+    // Internal clear that doesn't trigger UI updates immediately (helper)
     clearSelectionInternal() {
         const tableBody = document.querySelector(`#${this.outputDivId} table tbody`);
         if (!tableBody) return;
