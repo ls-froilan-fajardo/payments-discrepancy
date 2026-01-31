@@ -14,7 +14,32 @@ const MONTH_NAMES = [
 window.addEventListener('DOMContentLoaded', () => {
     initTheme();
     setButtonStates();
+    initModal();
 });
+
+// ===================== Modal Logic =====================
+function initModal() {
+    const helpBtn = document.getElementById('helpBtn');
+    const modal = document.getElementById('helpModal');
+    const closeBtn = document.getElementById('closeHelpBtn');
+
+    if (helpBtn && modal && closeBtn) {
+        helpBtn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+        });
+
+        closeBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+        });
+
+        // Close on clicking outside content
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.add('hidden');
+            }
+        });
+    }
+}
 
 // ===================== Theme Logic =====================
 function initTheme() {
@@ -496,7 +521,6 @@ class CSVPanel {
         if (this.selectedRows.size === 0) return;
         const selectedTrs = Array.from(this.selectedRows);
         const indices = selectedTrs.map(tr => parseInt(tr.dataset.sourceIndex)).filter(i => !isNaN(i));
-        // Remove duplicates and sort DESCENDING to delete safely
         const uniqueIndices = [...new Set(indices)].sort((a, b) => b - a);
         
         const deletedItems = [];
@@ -510,17 +534,14 @@ class CSVPanel {
         this.updateOutput();
     }
 
-    // === BUG FIX: Reverse Order for Delete Restoration ===
     handleUndo(shouldUpdateUI = true) {
         if (this.actionHistory.length === 0) return;
         const lastAction = this.actionHistory.pop();
 
         if (lastAction.type === 'add') {
-            // Undo shift: remove the ghost row
             this.csvData.splice(lastAction.index, 1);
         } else if (lastAction.type === 'delete') {
-            // Undo delete: We must restore rows from Low Index to High Index.
-            // Since items were stored High -> Low (during delete), we REVERSE here.
+            // Restore deleted items from bottom to top (Low index to high)
             [...lastAction.items].reverse().forEach(item => {
                 this.csvData.splice(item.index, 0, item.row);
             });
@@ -541,33 +562,62 @@ class CSVPanel {
         }
     }
 
-    // === SELECTION LOGIC ===
+    // === SELECTION LOGIC (UPDATED FOR ALT KEY) ===
     toggleRowSelection(tr, e) {
         const isMulti = e.ctrlKey || e.metaKey;
+        const isAlt = e.altKey;
         const cell = e.target.closest('td');
 
-        if (!isMulti) {
+        // 1. CLEAR LOGIC (Unless holding Ctrl or Alt)
+        if (!isMulti && !isAlt) {
             if (leftTableState) leftTableState.clearSelectionInternal();
             if (rightTableState) rightTableState.clearSelectionInternal();
         }
 
-        if (cell) {
-            if (isMulti && cell.classList.contains('selected-cell')) {
-                cell.classList.remove('selected-cell');
-            } else {
-                cell.classList.add('selected-cell');
-            }
-        } else {
-            tr.cells[0]?.classList.add('selected-cell');
-        }
-
-        const hasSelectedCells = tr.querySelector('.selected-cell') !== null;
-        if (hasSelectedCells) {
+        // 2. ALT KEY LOGIC (Select Whole Row on Both Tables)
+        if (isAlt) {
+            // A. Select current row cells
+            Array.from(tr.children).forEach(c => c.classList.add('selected-cell'));
             tr.classList.add('active-row');
             this.selectedRows.add(tr);
-        } else {
-            tr.classList.remove('active-row');
-            this.selectedRows.delete(tr);
+
+            // B. Find corresponding row in other table
+            const isLeft = (this === leftTableState);
+            const otherState = isLeft ? rightTableState : leftTableState;
+
+            if (otherState) {
+                const tbody = tr.parentNode;
+                const rowIndex = Array.from(tbody.children).indexOf(tr);
+                const otherTbody = document.querySelector(`#${otherState.outputDivId} table tbody`);
+                
+                if (otherTbody && otherTbody.children[rowIndex]) {
+                    const otherRow = otherTbody.children[rowIndex];
+                    Array.from(otherRow.children).forEach(c => c.classList.add('selected-cell'));
+                    otherRow.classList.add('active-row');
+                    otherState.selectedRows.add(otherRow);
+                }
+            }
+        } 
+        // 3. STANDARD LOGIC
+        else {
+            if (cell) {
+                if (isMulti && cell.classList.contains('selected-cell')) {
+                    cell.classList.remove('selected-cell');
+                } else {
+                    cell.classList.add('selected-cell');
+                }
+            } else {
+                tr.cells[0]?.classList.add('selected-cell');
+            }
+
+            const hasSelectedCells = tr.querySelector('.selected-cell') !== null;
+            if (hasSelectedCells) {
+                tr.classList.add('active-row');
+                this.selectedRows.add(tr);
+            } else {
+                tr.classList.remove('active-row');
+                this.selectedRows.delete(tr);
+            }
         }
 
         updateFloatingStats();
@@ -724,7 +774,6 @@ function updatePaymentIDHighlights() {
     const rightRows = document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)');
     const maxLength = Math.max(leftRows.length, rightRows.length);
 
-    // CSS Vars
     const redBg = 'var(--highlight-red-bg)';
     const redText = 'var(--highlight-red-text)';
 
@@ -733,7 +782,6 @@ function updatePaymentIDHighlights() {
         const lCellID = lRow?.cells[0]; const rCellID = rRow?.cells[0];
         const lID = lCellID?.textContent.trim() || ""; const rID = rCellID?.textContent.trim() || "";
 
-        // Only Keep White if BOTH Exist AND Match
         if (lID !== "" && rID !== "" && lID === rID) {
             if (lCellID) lCellID.style.backgroundColor = '';
             if (rCellID) rCellID.style.backgroundColor = '';
@@ -746,14 +794,14 @@ function updatePaymentIDHighlights() {
             const lCell = lRow?.cells[colIdx]; const rCell = rRow?.cells[colIdx];
             if (!lCell || !rCell) return;
             const lText = lCell.textContent.trim(); const rText = rCell.textContent.trim();
-            
-            // Reset styles
-            lCell.style.color = ''; lCell.style.fontWeight = '';
-            rCell.style.color = ''; rCell.style.fontWeight = '';
-
-            if (lText === '' && rText === '') return;
-
+            if (lText === '' && rText === '') {
+                lCell.style.color = ''; lCell.style.fontWeight = '';
+                rCell.style.color = ''; rCell.style.fontWeight = '';
+                return;
+            }
             const lVal = parseMoney(lText); const rVal = parseMoney(rText);
+            if (lCell) { lCell.style.color = ''; lCell.style.fontWeight = ''; }
+            if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
 
             if (Math.abs(lVal - rVal) > 0.009) {
                 if (lVal < rVal && lCell) { lCell.style.color = redText; lCell.style.fontWeight = 'bold'; } 
