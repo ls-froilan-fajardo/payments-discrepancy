@@ -126,11 +126,9 @@ function normalizeDate(raw, formatType) {
 function extractTime(raw) {
     if (!raw) return '';
     const str = String(raw).trim();
-    // ISO Format: 2023-10-27T14:30:00
     if (str.includes('T')) {
         return str.split('T')[1].split('.')[0]; 
     }
-    // Space Separated: 27/10/2023 14:30:00
     if (str.includes(' ')) {
         const parts = str.split(' ');
         const timePart = parts.find(p => p.includes(':'));
@@ -269,17 +267,21 @@ setupBtn('resetViewBtn', function() {
 });
 
 const dateEl = document.getElementById('globalDateFilter');
-if(dateEl) dateEl.addEventListener('change', refreshBoth);
+if(dateEl) {
+    // === UPDATED: CHANGING DATE TRIGGERS UNDO ALL ===
+    dateEl.addEventListener('change', () => {
+        performUnifiedAction('undoAll');
+    });
+}
+
 const leftFormatEl = document.getElementById('leftDateFormat');
 if(leftFormatEl) leftFormatEl.addEventListener('change', () => { updateGlobalDateFilter(); refreshBoth(); });
 
-// Unified Buttons
 setupBtn('btnShift', () => performUnifiedAction('add'));
 setupBtn('btnRemove', () => performUnifiedAction('delete'));
 setupBtn('btnUndo', () => performUnifiedAction('undo'));
 setupBtn('btnUndoAll', () => performUnifiedAction('undoAll'));
 
-// Keyboard Shortcuts
 document.addEventListener('keydown', (e) => {
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
     if (e.code === 'Space') { e.preventDefault(); performUnifiedAction('add'); }
@@ -338,7 +340,6 @@ function updatePostAction() {
     if (isMatchAllActive && !isSortByAmountActive) { }
     if (isRedFilterActive) applyRedFilter();
     else {
-        // Left False, Right True
         updateTotalsDOM('outputLeft', false);
         updateTotalsDOM('outputRight', true);
     }
@@ -364,8 +365,6 @@ function updateTotalsDOM(outputId, isRight) {
         return; 
     }
 
-    // Left: [Ref, Acct, Date, Time, Amt, Tip, Paid] (7 Cols)
-    // Right: [ID, Card, Date, Time, Amt, Tips, Paid, Ref, Sur] (9 Cols)
     const numCols = rows[0]?.children.length || (isRight ? 9 : 7);
     const sums = new Array(numCols).fill(0);
 
@@ -385,11 +384,9 @@ function updateTotalsDOM(outputId, isRight) {
             if (i === 0) {
                 td.textContent = isRedFilterActive ? 'Filtered' : 'Total';
             } else if (isRight) {
-                // Right Table (Indices 1, 2, 3 are Card/Date/Time, empty)
                 if (i >= 1 && i <= 3) td.textContent = '';
                 else td.textContent = sums[i].toFixed(2);
             } else {
-                // Left Table (Indices 1, 2, 3 are Account/Date/Time, empty)
                 if (i >= 1 && i <= 3) td.textContent = '';
                 else td.textContent = sums[i].toFixed(2);
             }
@@ -701,8 +698,6 @@ class CSVPanel {
         }
 
         const table = document.createElement('table');
-        
-        // === UPDATED HEADERS FOR BOTH TABLES (Time added) ===
         const displayHeaders = this.isRightTable 
             ? ['Payment ID', 'Card last 4', 'Date', 'Time', 'Amount', 'Tips', 'Paid', 'Refunds', 'Surcharge'] 
             : ['PaymentRef', 'Account', 'Date', 'Time', 'Amount', 'Tip', 'Paid'];
@@ -724,7 +719,6 @@ class CSVPanel {
                 let lookup = h;
                 let valToDisplay = '';
 
-                // === TIME COLUMN LOGIC (For Both Tables) ===
                 if (h === 'Time') {
                     const dIdx = this.headerRow.indexOf("Date");
                     if (dIdx !== -1) {
@@ -794,13 +788,11 @@ function updatePaymentIDHighlights() {
     const redBg = 'var(--highlight-red-bg)';
     const redText = 'var(--highlight-red-text)';
 
-    // === EXPLICIT COLUMN MAPPING ===
-    // Left: 0:Ref, 1:Acct, 2:Date, 3:Time, 4:Amt, 5:Tip, 6:Paid
-    // Right: 0:ID, 1:Card, 2:Date, 3:Time, 4:Amt, 5:Tip, 6:Paid, 7:Ref, 8:Sur
+    // Map: [Ref, Acct, Date, Time, Amt(4), Tip(5), Paid(6)] vs [ID, Card, Date, Time, Amt(4), Tips(5), Paid(6)]
     const map = [
-        { l: 4, r: 4 }, // Amount vs Amount
-        { l: 5, r: 5 }, // Tip vs Tips
-        { l: 6, r: 6 }  // Paid vs Paid
+        { l: 4, r: 4 }, // Amount
+        { l: 5, r: 5 }, // Tip
+        { l: 6, r: 6 }  // Paid
     ];
 
     for (let index = 0; index < maxLength; index++) {
