@@ -36,7 +36,9 @@
             <h3>Back Office</h3>
             <input type="file" id="csvFileLeft" accept=".csv" />
         </div>
+        
         <div style="margin-bottom: 5px;">
+            <label for="leftDateFormat" style="font-size:11px; font-weight:700; color:var(--text-muted); display:block; margin-bottom:2px;">CSV File Date Format:</label>
             <select id="leftDateFormat" class="date-select" style="width:100%; margin:0;">
                 <option value="DD/MM/YYYY">DD/MM/YYYY</option>
                 <option value="DD/MM/YY">DD/MM/YY</option>
@@ -47,6 +49,7 @@
                 <option value="MM.DD.YYYY">MM.DD.YYYY</option>
             </select>
         </div>
+
         <div class="checkbox-area">
             <strong>Method:</strong>
             <div class="checkboxes" id="methodCheckboxesLeft"></div>
@@ -58,7 +61,8 @@
             <h3>Financial Services</h3>
             <input type="file" id="csvFileRight" accept=".csv" />
         </div>
-        <div style="margin-bottom: 5px; height: 26px;"></div> <div class="checkbox-area">
+        <div style="margin-bottom: 5px; height: 42px;"></div> 
+        <div class="checkbox-area">
             <strong>Channel:</strong>
             <div class="checkboxes" id="channelCheckboxesRight"></div>
         </div>
