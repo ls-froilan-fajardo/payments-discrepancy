@@ -268,7 +268,6 @@ setupBtn('resetViewBtn', function() {
 
 const dateEl = document.getElementById('globalDateFilter');
 if(dateEl) {
-    // === UPDATED: CHANGING DATE TRIGGERS UNDO ALL ===
     dateEl.addEventListener('change', () => {
         performUnifiedAction('undoAll');
     });
@@ -398,7 +397,7 @@ function updateTotalsDOM(outputId, isRight) {
 function applyRedFilter() {
     const leftRows = Array.from(document.querySelectorAll('#outputLeft table tbody tr:not(.totals-row)'));
     const rightRows = Array.from(document.querySelectorAll('#outputRight table tbody tr:not(.totals-row)'));
-    const redBgVar = 'var(--highlight-red-bg)';
+    
     const filter = (rows) => {
         rows.forEach(row => {
             const isRed = row.cells[0]?.style.backgroundColor.includes('var(--highlight-red-bg)');
@@ -679,10 +678,30 @@ class CSVPanel {
         const paidColName = this.isRightTable ? 'Amount' : 'Paid'; 
         const paidIdx = this.headerRow.indexOf(paidColName);
 
-        if (isSortByAmountActive && paidIdx !== -1) {
+        if (isSortByAmountActive) {
             rows.sort((a, b) => {
-                const valA = parseMoney(a.data[paidIdx]); const valB = parseMoney(b.data[paidIdx]);
-                return valB - valA; 
+                let valA, valB;
+
+                if (this.isRightTable) {
+                    // Right Table Calculation: Paid (Amount col) - Tips (Gratuity col)
+                    const rAmtIdx = this.headerRow.indexOf('Amount');
+                    const rTipIdx = this.headerRow.indexOf('Gratuity amount');
+                    
+                    const aAmt = rAmtIdx !== -1 ? parseMoney(a.data[rAmtIdx]) : 0;
+                    const aTip = rTipIdx !== -1 ? parseMoney(a.data[rTipIdx]) : 0;
+                    valA = aAmt - aTip;
+
+                    const bAmt = rAmtIdx !== -1 ? parseMoney(b.data[rAmtIdx]) : 0;
+                    const bTip = rTipIdx !== -1 ? parseMoney(b.data[rTipIdx]) : 0;
+                    valB = bAmt - bTip;
+                } else {
+                    // Left Table Calculation: Uses 'Paid' column
+                    const pIdx = paidIdx !== -1 ? paidIdx : this.headerRow.indexOf('Amount');
+                    valA = pIdx !== -1 ? parseMoney(a.data[pIdx]) : 0;
+                    valB = pIdx !== -1 ? parseMoney(b.data[pIdx]) : 0;
+                }
+                
+                return valB - valA; // High to Low
             });
         } else if (dateIdx !== -1) {
             rows.sort((a, b) => {
