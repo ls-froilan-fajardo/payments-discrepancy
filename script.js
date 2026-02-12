@@ -420,6 +420,7 @@ class CSVPanel {
         this.headerRow = [];
         this.selectedRows = new Set();
         this.actionHistory = [];
+        this.lastSelectedRowIndex = null; // Track index for shift-select
         this.init();
     }
 
@@ -441,6 +442,7 @@ class CSVPanel {
         this.headerRow = [];
         this.selectedRows.clear();
         this.actionHistory = [];
+        this.lastSelectedRowIndex = null;
         document.getElementById(this.outputDivId).innerHTML = '';
         document.getElementById(this.filterDivId).innerHTML = '';
         const fileInput = document.getElementById(this.fileInputId);
@@ -571,17 +573,68 @@ class CSVPanel {
     toggleRowSelection(tr, e) {
         const isMulti = e.ctrlKey || e.metaKey;
         const isAlt = e.altKey;
+        const isShift = e.shiftKey;
         const cell = e.target.closest('td');
+        const tbody = tr.parentNode;
+        const currentRowIndex = Array.from(tbody.children).indexOf(tr);
 
+        // === RANGE SELECTION (ALT + SHIFT) ===
+        // Selects rows in between on BOTH tables
+        if (isAlt && isShift && this.lastSelectedRowIndex !== null) {
+            const start = Math.min(this.lastSelectedRowIndex, currentRowIndex);
+            const end = Math.max(this.lastSelectedRowIndex, currentRowIndex);
+            
+            const isLeft = (this === leftTableState);
+            const otherState = isLeft ? rightTableState : leftTableState;
+            const otherTbody = otherState ? document.querySelector(`#${otherState.outputDivId} table tbody`) : null;
+
+            for (let i = start; i <= end; i++) {
+                const row = tbody.children[i];
+                if (!row || row.classList.contains('totals-row')) continue;
+
+                // Select current side
+                Array.from(row.children).forEach(c => c.classList.add('selected-cell'));
+                row.classList.add('active-row');
+                this.selectedRows.add(row);
+
+                // Select matching side
+                if (otherTbody && otherTbody.children[i]) {
+                    const otherRow = otherTbody.children[i];
+                    if (!otherRow.classList.contains('totals-row')) {
+                        Array.from(otherRow.children).forEach(c => c.classList.add('selected-cell'));
+                        otherRow.classList.add('active-row');
+                        otherState.selectedRows.add(otherRow);
+                    }
+                }
+            }
+            this.lastSelectedRowIndex = currentRowIndex;
+            updateFloatingStats();
+            return; // Skip normal selection logic
+        }
+
+        // === NORMAL / ALT / CTRL SELECTION ===
         if (!isMulti && !isAlt) {
             if (leftTableState) leftTableState.clearSelectionInternal();
             if (rightTableState) rightTableState.clearSelectionInternal();
         }
 
         if (isAlt) {
-            Array.from(tr.children).forEach(c => c.classList.add('selected-cell'));
-            tr.classList.add('active-row');
-            this.selectedRows.add(tr);
+            // Check if already selected
+            const alreadySelected = tr.classList.contains('active-row');
+            
+            // Define action: Add or Remove
+            const action = alreadySelected ? 'remove' : 'add';
+
+            // Apply to current row
+            if (action === 'add') {
+                Array.from(tr.children).forEach(c => c.classList.add('selected-cell'));
+                tr.classList.add('active-row');
+                this.selectedRows.add(tr);
+            } else {
+                Array.from(tr.children).forEach(c => c.classList.remove('selected-cell'));
+                tr.classList.remove('active-row');
+                this.selectedRows.delete(tr);
+            }
 
             const isLeft = (this === leftTableState);
             const otherState = isLeft ? rightTableState : leftTableState;
@@ -592,9 +645,16 @@ class CSVPanel {
                 const otherTbody = document.querySelector(`#${otherState.outputDivId} table tbody`);
                 if (otherTbody && otherTbody.children[rowIndex]) {
                     const otherRow = otherTbody.children[rowIndex];
-                    Array.from(otherRow.children).forEach(c => c.classList.add('selected-cell'));
-                    otherRow.classList.add('active-row');
-                    otherState.selectedRows.add(otherRow);
+                    
+                    if (action === 'add') {
+                        Array.from(otherRow.children).forEach(c => c.classList.add('selected-cell'));
+                        otherRow.classList.add('active-row');
+                        otherState.selectedRows.add(otherRow);
+                    } else {
+                        Array.from(otherRow.children).forEach(c => c.classList.remove('selected-cell'));
+                        otherRow.classList.remove('active-row');
+                        otherState.selectedRows.delete(otherRow);
+                    }
                 }
             }
         } else {
@@ -617,7 +677,9 @@ class CSVPanel {
                 this.selectedRows.delete(tr);
             }
         }
-
+        
+        // Update anchor index
+        this.lastSelectedRowIndex = currentRowIndex;
         updateFloatingStats();
     }
 
@@ -638,6 +700,7 @@ class CSVPanel {
 
     updateOutput() {
         this.selectedRows.clear();
+        this.lastSelectedRowIndex = null; // Reset selection anchor on refresh
         const outputDiv = document.getElementById(this.outputDivId);
         outputDiv.innerHTML = '';
         if (this.csvData.length === 0) return;
@@ -683,7 +746,6 @@ class CSVPanel {
                 let valA, valB;
 
                 if (this.isRightTable) {
-                    // Right Table Calculation: Paid (Amount col) - Tips (Gratuity col)
                     const rAmtIdx = this.headerRow.indexOf('Amount');
                     const rTipIdx = this.headerRow.indexOf('Gratuity amount');
                     
@@ -695,13 +757,12 @@ class CSVPanel {
                     const bTip = rTipIdx !== -1 ? parseMoney(b.data[rTipIdx]) : 0;
                     valB = bAmt - bTip;
                 } else {
-                    // Left Table Calculation: Uses 'Paid' column
                     const pIdx = paidIdx !== -1 ? paidIdx : this.headerRow.indexOf('Amount');
                     valA = pIdx !== -1 ? parseMoney(a.data[pIdx]) : 0;
                     valB = pIdx !== -1 ? parseMoney(b.data[pIdx]) : 0;
                 }
                 
-                return valB - valA; // High to Low
+                return valB - valA; 
             });
         } else if (dateIdx !== -1) {
             rows.sort((a, b) => {
@@ -709,12 +770,9 @@ class CSVPanel {
                 const rawB = b.data[dateIdx] || '';
 
                 if (this.isRightTable) {
-                    // Financial Services (Right) table usually contains full ISO timestamps in the CSV.
-                    // Comparing them as strings effectively sorts by Date AND Time.
                     if (rawA < rawB) return -1;
                     if (rawA > rawB) return 1;
                 } else {
-                    // Left table logic (remains as is, typically sorting by Date only via normalization)
                     const tA = new Date(normalizeDate(rawA, sortFormat)).getTime() || 0;
                     const tB = new Date(normalizeDate(rawB, sortFormat)).getTime() || 0;
                     if (tA !== tB) return tA - tB;
@@ -741,7 +799,12 @@ class CSVPanel {
             const isBlank = r._isBlank; 
             const tr = document.createElement('tr');
             tr.dataset.sourceIndex = wrapper.originalIndex;
+            
+            // === EVENT LISTENERS FOR SELECTION AND PREVENT HIGHLIGHT ===
             tr.addEventListener('click', (e) => this.toggleRowSelection(tr, e));
+            tr.addEventListener('mousedown', (e) => {
+                if (e.shiftKey) e.preventDefault(); 
+            });
             
             displayHeaders.forEach(h => {
                 const td = document.createElement('td');
