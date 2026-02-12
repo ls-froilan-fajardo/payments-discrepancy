@@ -705,9 +705,21 @@ class CSVPanel {
             });
         } else if (dateIdx !== -1) {
             rows.sort((a, b) => {
-                const tA = new Date(normalizeDate(a.data[dateIdx], sortFormat)).getTime() || 0;
-                const tB = new Date(normalizeDate(b.data[dateIdx], sortFormat)).getTime() || 0;
-                if (tA !== tB) return tA - tB;
+                const rawA = a.data[dateIdx] || '';
+                const rawB = b.data[dateIdx] || '';
+
+                if (this.isRightTable) {
+                    // Financial Services (Right) table usually contains full ISO timestamps in the CSV.
+                    // Comparing them as strings effectively sorts by Date AND Time.
+                    if (rawA < rawB) return -1;
+                    if (rawA > rawB) return 1;
+                } else {
+                    // Left table logic (remains as is, typically sorting by Date only via normalization)
+                    const tA = new Date(normalizeDate(rawA, sortFormat)).getTime() || 0;
+                    const tB = new Date(normalizeDate(rawB, sortFormat)).getTime() || 0;
+                    if (tA !== tB) return tA - tB;
+                }
+
                 if (idIdx !== -1) {
                     const idA = (a.data[idIdx] || '').toLowerCase(); const idB = (b.data[idIdx] || '').toLowerCase();
                     if (idA < idB) return -1; if (idA > idB) return 1;
