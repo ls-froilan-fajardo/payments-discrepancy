@@ -6,9 +6,9 @@
     --danger: #dc2626;
     --undo: #64748b;
     
-    --bg-main: #f8fafc;       
-    --bg-card: #ffffff;       
-    --bg-header: #f1f5f9;     
+    --bg-main: #f8fafc;        
+    --bg-card: #ffffff;        
+    --bg-header: #f1f5f9;      
     --border: #cbd5e1;
     
     --text-main: #0f172a;
@@ -24,12 +24,12 @@
 
 /* === DARK THEME OVERRIDES === */
 [data-theme="dark"] {
-    --bg-main: #0f172a;       
-    --bg-card: #1e293b;       
-    --bg-header: #334155;     
-    --border: #475569;        
+    --bg-main: #0f172a;        
+    --bg-card: #1e293b;        
+    --bg-header: #334155;      
+    --border: #475569;         
     
-    --text-main: #f1f5f9;     
+    --text-main: #f1f5f9;      
     --text-muted: #94a3b8;
     
     --highlight-red-bg: #450a0a;  
