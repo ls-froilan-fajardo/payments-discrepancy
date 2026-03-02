@@ -184,11 +184,28 @@ if (header) {
 function updateFloatingStats() {
     const selectedCells = document.querySelectorAll('td.selected-cell');
     let sum = 0; let count = 0;
+    
     selectedCells.forEach(cell => {
-        const val = parseMoney(cell.textContent);
-        if (!isNaN(val)) sum += val;
+        const tr = cell.closest('tr');
+        const tbody = tr.closest('tbody');
+        if (!tbody) return;
+        
+        const isRight = tbody.closest('#outputRight') !== null;
+        const cellIndex = cell.cellIndex;
+        
+        // Target ONLY the columns that contain money so IDs/Cards aren't summed
+        const moneyColumns = isRight ? [4, 5, 6, 7, 8] : [4, 5, 6];
+        
+        if (moneyColumns.includes(cellIndex)) {
+            const txt = cell.textContent || "";
+            if (txt.trim() !== "" && txt !== "\u00A0" && txt !== "&nbsp;") {
+                const val = parseMoney(txt);
+                if (!isNaN(val)) sum += val;
+            }
+        }
         count++;
     });
+    
     const sumEl = document.getElementById('floatSum');
     const countEl = document.getElementById('floatCount');
     if (sumEl) sumEl.textContent = sum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -357,38 +374,49 @@ function updateTotalsDOM(outputId, isRight) {
     if (!tableBody) return;
     
     const totalsRow = tableBody.querySelector('.totals-row');
-    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)')).filter(tr => tr.style.display !== 'none');
+    
+    // Grab only the rows that are currently visible on the screen
+    const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'))
+                      .filter(tr => tr.style.display !== 'none');
     
     if (rows.length === 0) { 
         if (totalsRow) totalsRow.innerHTML = ''; 
         return; 
     }
 
-    const numCols = rows[0]?.children.length || (isRight ? 9 : 7);
+    const numCols = isRight ? 9 : 7;
     const sums = new Array(numCols).fill(0);
 
+    // Target ONLY the columns that contain money (Index 4 and up)
+    const moneyColumns = isRight ? [4, 5, 6, 7, 8] : [4, 5, 6];
+
     rows.forEach(tr => {
-        for (let i = 0; i < numCols; i++) {
+        moneyColumns.forEach(i => {
             const txt = tr.children[i]?.textContent || "";
-            if (txt.trim() === "" || txt === "&nbsp;") continue;
+            // Skip empty cells and blank alignment rows
+            if (txt.trim() === "" || txt === "\u00A0" || txt === "&nbsp;") return; 
+            
             const val = parseMoney(txt);
             if (!isNaN(val)) sums[i] += val;
-        }
+        });
     });
 
     if (totalsRow) {
         totalsRow.innerHTML = '';
         for (let i = 0; i < numCols; i++) {
             const td = document.createElement('td');
+            
             if (i === 0) {
-                td.textContent = isRedFilterActive ? 'Filtered' : 'Total';
-            } else if (isRight) {
-                if (i >= 1 && i <= 3) td.textContent = '';
-                else td.textContent = sums[i].toFixed(2);
+                // Update the label based on the active filter
+                td.textContent = isRedFilterActive ? 'Discrepancies Total' : 'Total';
+            } else if (moneyColumns.includes(i)) {
+                // Print the math only in the designated money columns
+                td.textContent = sums[i].toFixed(2);
             } else {
-                if (i >= 1 && i <= 3) td.textContent = '';
-                else td.textContent = sums[i].toFixed(2);
+                // Leave Date, Time, ID, and Card columns blank
+                td.textContent = ''; 
             }
+            
             totalsRow.appendChild(td);
         }
     }
@@ -400,11 +428,14 @@ function applyRedFilter() {
     
     const filter = (rows) => {
         rows.forEach(row => {
-            const isRed = row.cells[0]?.style.backgroundColor.includes('var(--highlight-red-bg)');
-            row.style.display = (isRedFilterActive && !isRed) ? 'none' : '';
+            // Hide the row if the Red Only filter is active AND the row is a perfect match
+            const isPerfectMatch = row.classList.contains('perfect-match');
+            row.style.display = (isRedFilterActive && isPerfectMatch) ? 'none' : '';
         });
     };
-    filter(leftRows); filter(rightRows);
+    
+    filter(leftRows); 
+    filter(rightRows);
     updateTotalsDOM('outputLeft', false);
     updateTotalsDOM('outputRight', true);
 }
@@ -892,15 +923,23 @@ function updatePaymentIDHighlights() {
     for (let index = 0; index < maxLength; index++) {
         const lRow = leftRows[index]; const rRow = rightRows[index];
         const lCellID = lRow?.cells[0]; const rCellID = rRow?.cells[0];
-        const lID = lCellID?.textContent.trim() || ""; const rID = rCellID?.textContent.trim() || "";
+        
+        // Ensure whitespace is trimmed safely for matching checks
+        const lID = lCellID?.textContent.replace(/\u00A0/g, ' ').trim().toLowerCase() || ""; 
+        const rID = rCellID?.textContent.replace(/\u00A0/g, ' ').trim().toLowerCase() || "";
+
+        let idMatch = false;
 
         if (lID !== "" && rID !== "" && lID === rID) {
             if (lCellID) lCellID.style.backgroundColor = '';
             if (rCellID) rCellID.style.backgroundColor = '';
+            idMatch = true;
         } else {
             if (lCellID) lCellID.style.backgroundColor = redBg; 
             if (rCellID) rCellID.style.backgroundColor = redBg; 
         }
+
+        let amountMismatch = false;
 
         map.forEach(pair => {
             const lCell = lRow?.cells[pair.l]; 
@@ -920,52 +959,125 @@ function updatePaymentIDHighlights() {
             if (rCell) { rCell.style.color = ''; rCell.style.fontWeight = ''; }
 
             if (Math.abs(lVal - rVal) > 0.009) {
+                amountMismatch = true;
                 if (lVal < rVal && lCell) { lCell.style.color = redText; lCell.style.fontWeight = 'bold'; } 
                 else if (rVal < lVal && rCell) { rCell.style.color = redText; rCell.style.fontWeight = 'bold'; }
             }
         });
-    }
-}
 
-function insertBlankRow(tbody, index, numCols) {
-    const tr = document.createElement('tr');
-    for (let c = 0; c < numCols; c++) { const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td); }
-    if (tbody.rows[index]) tbody.insertBefore(tr, tbody.rows[index]);
-    else { const totals = tbody.querySelector('.totals-row'); if (totals) tbody.insertBefore(tr, totals); else tbody.appendChild(tr); }
+        // A row is a perfect match if the IDs match and there are no monetary discrepancies
+        const isPerfectMatch = idMatch && !amountMismatch;
+
+        if (lRow) {
+            if (isPerfectMatch) lRow.classList.add('perfect-match');
+            else lRow.classList.remove('perfect-match');
+        }
+        if (rRow) {
+            if (isPerfectMatch) rRow.classList.add('perfect-match');
+            else rRow.classList.remove('perfect-match');
+        }
+    }
 }
 
 function runAlignmentLogic() {
     const leftTbody = document.querySelector('#outputLeft table tbody');
     const rightTbody = document.querySelector('#outputRight table tbody');
     if (!leftTbody || !rightTbody) return;
-    let i = 0; let safetyCounter = 0; const maxIterations = 5000; 
 
-    while (i < Math.max(leftTbody.rows.length - 1, rightTbody.rows.length - 1)) {
-        if (safetyCounter++ > maxIterations) break;
-        const lRow = leftTbody.rows[i]; const rRow = rightTbody.rows[i];
-        if (lRow?.classList.contains('totals-row') || rRow?.classList.contains('totals-row')) break;
-        
-        const lID = lRow?.cells[0]?.textContent.trim() || ""; 
-        const rID = rRow?.cells[0]?.textContent.trim() || "";
-        
-        if (lID === "" && rID === "") { i++; continue; } 
-        if (lID === rID && lID !== "") { i++; continue; }
-        
-        let fInR = false; for (let r = i + 1; r < rightTbody.rows.length - 1; r++) { if (rightTbody.rows[r].cells[0].textContent.trim() === lID && lID !== "") { fInR = true; break; } }
-        let fInL = false; for (let l = i + 1; l < leftTbody.rows.length - 1; l++) { if (leftTbody.rows[l].cells[0].textContent.trim() === rID && rID !== "") { fInL = true; break; } }
-        
-        // Updated numCols: Left has 7, Right has 9
-        if (fInR) insertBlankRow(leftTbody, i, 7); 
-        else if (fInL) insertBlankRow(rightTbody, i, 9); 
-        else i++;
-    }
-    let lCount = leftTbody.querySelectorAll('tr:not(.totals-row)').length;
-    let rCount = rightTbody.querySelectorAll('tr:not(.totals-row)').length;
-    while (lCount < rCount) { insertBlankRow(leftTbody, lCount, 7); lCount++; }
-    while (rCount < lCount) { insertBlankRow(rightTbody, rCount, 9); rCount++; }
+    // Remove totals rows temporarily so they don't get mixed in
+    const lTotals = leftTbody.querySelector('.totals-row');
+    const rTotals = rightTbody.querySelector('.totals-row');
+    if (lTotals) lTotals.remove();
+    if (rTotals) rTotals.remove();
+
+    const leftRows = Array.from(leftTbody.querySelectorAll('tr'));
+    const rightRows = Array.from(rightTbody.querySelectorAll('tr'));
+
+    // Standardize IDs: remove non-breaking spaces, trim whitespace, and make lowercase
+    const getID = (row) => row ? (row.cells[0]?.textContent || "").replace(/\u00A0/g, ' ').trim().toLowerCase() : "";
+
+    const createBlankLeft = () => {
+        const tr = document.createElement('tr');
+        for(let i=0; i<7; i++) { const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td); }
+        return tr;
+    };
     
+    const createBlankRight = () => {
+        const tr = document.createElement('tr');
+        for(let i=0; i<9; i++) { const td = document.createElement('td'); td.innerHTML = '&nbsp;'; tr.appendChild(td); }
+        return tr;
+    };
+
+    const alignedPairs = [];
+    const rightMap = new Map();
+    const rightUnmatched = [];
+
+    // 1. Catalog all Right rows into a Map for instant lookup
+    rightRows.forEach(rRow => {
+        const id = getID(rRow);
+        if (id !== "") {
+            if (!rightMap.has(id)) rightMap.set(id, []);
+            rightMap.get(id).push(rRow);
+        } else {
+            rightUnmatched.push(rRow);
+        }
+    });
+
+    // 2. Go through Left rows and snap the exact Right match to it
+    leftRows.forEach(lRow => {
+        const id = getID(lRow);
+        let matchedRight = null;
+
+        if (id !== "" && rightMap.has(id) && rightMap.get(id).length > 0) {
+            // Take the first available matching right row out of the pool
+            matchedRight = rightMap.get(id).shift();
+        }
+
+        alignedPairs.push({
+            left: lRow,
+            right: matchedRight || createBlankRight()
+        });
+    });
+
+    // 3. Collect any remaining Right rows that had no Left match
+    rightMap.forEach((rows) => {
+        rows.forEach(rRow => {
+            alignedPairs.push({
+                left: createBlankLeft(),
+                right: rRow
+            });
+        });
+    });
+
+    // 4. Collect Right rows that didn't have an ID at all
+    rightUnmatched.forEach(rRow => {
+        alignedPairs.push({
+            left: createBlankLeft(),
+            right: rRow
+        });
+    });
+
+    // Clear and rebuild the DOM strictly using the paired arrays
+    leftTbody.innerHTML = '';
+    rightTbody.innerHTML = '';
+    
+    alignedPairs.forEach(pair => {
+        leftTbody.appendChild(pair.left);
+        rightTbody.appendChild(pair.right);
+    });
+    
+    // Place total rows back at the bottom
+    if (lTotals) leftTbody.appendChild(lTotals);
+    if (rTotals) rightTbody.appendChild(rTotals);
+
     updatePaymentIDHighlights();
-    if (isRedFilterActive) applyRedFilter(); else { updateTotalsDOM('outputLeft', false); updateTotalsDOM('outputRight', true); }
+    
+    if (isRedFilterActive) {
+        applyRedFilter(); 
+    } else { 
+        updateTotalsDOM('outputLeft', false); 
+        updateTotalsDOM('outputRight', true); 
+    }
 }
 
 leftTableState = new CSVPanel('csvFileLeft', 'methodCheckboxesLeft', 'outputLeft', false);
