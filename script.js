@@ -245,11 +245,9 @@ function updateGlobalDateFilter() {
 
 // ===================== Centralized Rendering Engine =====================
 function refreshBoth() {
-    // 1. Rebuild purely from raw data
     if (leftTableState) leftTableState.updateOutput();
     if (rightTableState) rightTableState.updateOutput();
     
-    // 2. Perform alignment strictly on the fresh tables
     if (isMatchAllActive && !isSortByAmountActive) {
         runAlignmentLogic();
     } else {
@@ -316,7 +314,6 @@ if(dateEl) {
 const leftFormatEl = document.getElementById('leftDateFormat');
 if(leftFormatEl) leftFormatEl.addEventListener('change', () => { updateGlobalDateFilter(); refreshBoth(); });
 
-// .blur() prevents the spacebar from double-firing the action if a button is currently focused
 setupBtn('btnShift', (e) => { e.currentTarget.blur(); performUnifiedAction('add'); });
 setupBtn('btnRemove', (e) => { e.currentTarget.blur(); performUnifiedAction('delete'); });
 setupBtn('btnUndo', (e) => { e.currentTarget.blur(); performUnifiedAction('undo'); });
@@ -382,10 +379,8 @@ function performUnifiedAction(actionType) {
         else if (actionType === 'delete') rightTableState.handleDeleteRow(false);
     }
 
-    // Centrally rebuild and align the tables so we never get duplicate ghost rows
     refreshBoth();
 
-    // Re-highlight the row we just modified
     if (leftReselect) leftTableState.reselectRowBySourceIndex(leftReselect.idx, leftReselect.colIdx);
     if (rightReselect) rightTableState.reselectRowBySourceIndex(rightReselect.idx, rightReselect.colIdx);
 }
@@ -398,7 +393,6 @@ function updateTotalsDOM(outputId, isRight) {
     
     const totalsRow = tableBody.querySelector('.totals-row');
     
-    // Grab only the rows that are currently visible on the screen
     const rows = Array.from(tableBody.querySelectorAll('tr:not(.totals-row)'))
                       .filter(tr => tr.style.display !== 'none');
     
@@ -633,7 +627,6 @@ class CSVPanel {
         const tbody = tr.parentNode;
         const currentRowIndex = Array.from(tbody.children).indexOf(tr);
 
-        // RANGE SELECTION (ALT + SHIFT)
         if (isAlt && isShift && this.lastSelectedRowIndex !== null) {
             const start = Math.min(this.lastSelectedRowIndex, currentRowIndex);
             const end = Math.max(this.lastSelectedRowIndex, currentRowIndex);
@@ -664,7 +657,6 @@ class CSVPanel {
             return; 
         }
 
-        // NORMAL / ALT / CTRL SELECTION
         if (!isMulti && !isAlt) {
             if (leftTableState) leftTableState.clearSelectionInternal();
             if (rightTableState) rightTableState.clearSelectionInternal();
@@ -790,24 +782,9 @@ class CSVPanel {
 
         if (isSortByAmountActive) {
             rows.sort((a, b) => {
-                let valA, valB;
-
-                if (this.isRightTable) {
-                    const rAmtIdx = this.headerRow.indexOf('Amount');
-                    const rTipIdx = this.headerRow.indexOf('Gratuity amount');
-                    
-                    const aAmt = rAmtIdx !== -1 ? parseMoney(a.data[rAmtIdx]) : 0;
-                    const aTip = rTipIdx !== -1 ? parseMoney(a.data[rTipIdx]) : 0;
-                    valA = aAmt - aTip;
-
-                    const bAmt = rAmtIdx !== -1 ? parseMoney(b.data[rAmtIdx]) : 0;
-                    const bTip = rTipIdx !== -1 ? parseMoney(b.data[rTipIdx]) : 0;
-                    valB = bAmt - bTip;
-                } else {
-                    const pIdx = paidIdx !== -1 ? paidIdx : this.headerRow.indexOf('Amount');
-                    valA = pIdx !== -1 ? parseMoney(a.data[pIdx]) : 0;
-                    valB = pIdx !== -1 ? parseMoney(b.data[pIdx]) : 0;
-                }
+                const pIdx = paidIdx !== -1 ? paidIdx : this.headerRow.indexOf('Amount');
+                const valA = pIdx !== -1 ? parseMoney(a.data[pIdx]) : 0;
+                const valB = pIdx !== -1 ? parseMoney(b.data[pIdx]) : 0;
                 
                 return valB - valA; 
             });
