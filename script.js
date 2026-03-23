@@ -304,6 +304,11 @@ setupBtn('resetViewBtn', (e) => {
     }
 });
 
+setupBtn('exportCsvBtn', (e) => {
+    e.currentTarget.blur();
+    exportToCSV();
+});
+
 const dateEl = document.getElementById('globalDateFilter');
 if(dateEl) {
     dateEl.addEventListener('change', () => {
@@ -1071,6 +1076,67 @@ function runAlignmentLogic() {
         updateTotalsDOM('outputLeft', false); 
         updateTotalsDOM('outputRight', true); 
     }
+}
+
+// ===================== Export Logic =====================
+function exportToCSV() {
+    const leftTable = document.querySelector('#outputLeft table');
+    const rightTable = document.querySelector('#outputRight table');
+
+    if (!leftTable && !rightTable) {
+        alert("There is no data to export.");
+        return;
+    }
+
+    let csvContent = "";
+
+    const escapeCSV = (str) => {
+        if (str === null || str === undefined) return '""';
+        let escaped = String(str).replace(/"/g, '""'); 
+        return `"${escaped}"`;
+    };
+
+    const leftHeaders = leftTable ? Array.from(leftTable.querySelectorAll('thead th')).map(th => th.textContent.trim()) : [];
+    const rightHeaders = rightTable ? Array.from(rightTable.querySelectorAll('thead th')).map(th => th.textContent.trim()) : [];
+    
+    const combinedHeaders = [...leftHeaders, " ", ...rightHeaders];
+    csvContent += combinedHeaders.map(escapeCSV).join(",") + "\n";
+
+    const leftRows = leftTable ? Array.from(leftTable.querySelectorAll('tbody tr')) : [];
+    const rightRows = rightTable ? Array.from(rightTable.querySelectorAll('tbody tr')) : [];
+    const maxRows = Math.max(leftRows.length, rightRows.length);
+
+    for (let i = 0; i < maxRows; i++) {
+        const lRow = leftRows[i];
+        const rRow = rightRows[i];
+
+        if ((lRow && lRow.style.display === 'none') || (rRow && rRow.style.display === 'none')) {
+            continue;
+        }
+
+        const lCells = lRow 
+            ? Array.from(lRow.querySelectorAll('td')).map(td => td.textContent.trim().replace(/\u00A0/g, '')) 
+            : new Array(leftHeaders.length).fill("");
+            
+        const rCells = rRow 
+            ? Array.from(rRow.querySelectorAll('td')).map(td => td.textContent.trim().replace(/\u00A0/g, '')) 
+            : new Array(rightHeaders.length).fill("");
+
+        const combinedCells = [...lCells, "", ...rCells];
+        csvContent += combinedCells.map(escapeCSV).join(",") + "\n";
+    }
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute("download", `Reconciliation_Export_${dateStr}.csv`);
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 leftTableState = new CSVPanel('csvFileLeft', 'methodCheckboxesLeft', 'outputLeft', false);
