@@ -85,40 +85,40 @@ function setButtonStates() {
 
 // ===================== Helpers =====================
 function normalizeDate(raw, formatType) {
-    if (raw === null || raw === undefined) return '';
+    if (!raw) return '';
     const str = String(raw).trim();
     if (str === '') return '';
+    
     let datePart = str.split(/[\sT]/)[0]; 
-    if (datePart.includes('-')) {
-        const parts = datePart.split('-');
+    let separator = '';
+    
+    if (datePart.includes('-')) separator = '-';
+    else if (datePart.includes('/')) separator = '/';
+    else if (datePart.includes('.')) separator = '.';
+    
+    if (separator !== '') {
+        const parts = datePart.split(separator);
         if (parts.length === 3) {
-            let [y, m, d] = parts;
-            if (y.length === 2) y = '20' + y;
-            m = m.padStart(2, '0'); d = d.padStart(2, '0');
-            return `${y}-${m}-${d}`;
+            let day, month, year;
+            
+            // Strictly follow the dropdown selection regardless of separator
+            if (formatType.startsWith('DD')) { 
+                [day, month, year] = parts; 
+            } else if (formatType.startsWith('MM')) { 
+                [month, day, year] = parts; 
+            } else { 
+                // Default to ISO / YYYY-MM-DD
+                [year, month, day] = parts; 
+            }
+            
+            // Fix 2 digit years
+            if (year.length === 2) year = '20' + year;
+            
+            day = day.padStart(2, '0'); 
+            month = month.padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
         }
-        return datePart;
-    }
-    if (datePart.includes('/')) {
-        const parts = datePart.split('/');
-        if (parts.length !== 3) return datePart;
-        let day, month, year;
-        if (formatType.startsWith('DD/MM')) { [day, month, year] = parts; } 
-        else if (formatType.startsWith('MM/DD')) { [month, day, year] = parts; } 
-        else { [day, month, year] = parts; }
-        if (year.length === 2) year = '20' + year;
-        day = day.padStart(2, '0'); month = month.padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-    if (datePart.includes('.')) {
-        const parts = datePart.split('.');
-        if (parts.length !== 3) return datePart;
-        let day, month, year;
-        if (formatType.startsWith('MM.DD')) { [month, day, year] = parts; } 
-        else { [day, month, year] = parts; }
-        if (year.length === 2) year = '20' + year;
-        day = day.padStart(2, '0'); month = month.padStart(2, '0');
-        return `${year}-${month}-${day}`;
     }
     return datePart;
 }
@@ -769,7 +769,6 @@ class CSVPanel {
         if (this.isRightTable) {
             const sIdx = this.headerRow.indexOf("Status");
             if (sIdx !== -1) {
-                // MODIFIED HERE: Added CANCELLED to the filter logic
                 rows = rows.filter(w => {
                     const status = (w.data[sIdx] || '').toUpperCase();
                     return status !== 'FAILED' && status !== 'CANCELLED';
