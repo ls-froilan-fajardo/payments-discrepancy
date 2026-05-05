@@ -768,7 +768,13 @@ class CSVPanel {
 
         if (this.isRightTable) {
             const sIdx = this.headerRow.indexOf("Status");
-            if (sIdx !== -1) rows = rows.filter(w => (w.data[sIdx] || '').toUpperCase() !== 'FAILED');
+            if (sIdx !== -1) {
+                // MODIFIED HERE: Added CANCELLED to the filter logic
+                rows = rows.filter(w => {
+                    const status = (w.data[sIdx] || '').toUpperCase();
+                    return status !== 'FAILED' && status !== 'CANCELLED';
+                });
+            }
         }
         
         const dateFilterVal = document.getElementById('globalDateFilter')?.value;
